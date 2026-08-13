@@ -1,0 +1,700 @@
+/* ==========================================================================
+   感 — Fluid Motion Kit 랜딩
+   Apple, Designing Fluid Interfaces (WWDC 2018)
+
+   이 파일의 규칙
+   - 제스처가 걸린 요소(시트, 카드 트랙)에는 transition을 쓰지 않는다.
+     도중에 붙잡을 수 없기 때문이다. 그 요소들은 JS 스프링이 움직인다.
+   - transition은 제스처와 무관한 것(색, 경계선, 눌림)에만 쓴다.
+   - 움직이는 것은 transform과 opacity뿐이다.
+   ========================================================================== */
+
+:root {
+  --winter-haze: #eef1f2;
+  --ice-sheet: #dbe2e4;
+  --mountain-ink: #1c2325;
+  --moss: #4b6560;
+  --stone: #8a9296;
+
+  --c-bg: var(--winter-haze);
+  --c-text: var(--mountain-ink);
+  --c-muted: var(--stone);
+  --c-hairline: rgba(28, 35, 37, 0.14);
+  --c-accent: var(--moss);
+  --c-accent-hover: #354a46;
+
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.68);
+  --glass-blur: blur(22px) saturate(150%);
+  --glass-shadow: 0 1px 1px rgba(28, 35, 37, 0.03), 0 8px 28px rgba(28, 35, 37, 0.07);
+
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Segoe UI", Roboto, "Malgun Gothic", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --w-wide: 62rem;
+  --radius: 16px;
+  --radius-lg: 24px;
+
+  --gap-inline: 1rem;
+  --gap-block: 2rem;
+  --gap-section: clamp(6rem, 14vw, 10rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: #12181a;
+    --c-text: #e6ecec;
+    --c-muted: #8a9296;
+    --c-hairline: rgba(230, 236, 236, 0.14);
+    --c-accent: #7ea19a;
+    --c-accent-hover: #9ab9b2;
+
+    --glass-bg: rgba(255, 255, 255, 0.06);
+    --glass-bg-strong: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.13);
+    --glass-shadow: 0 1px 1px rgba(0, 0, 0, 0.2), 0 8px 28px rgba(0, 0, 0, 0.3);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  /* 본문: 편안한 행간, 트래킹은 0 근처 */
+  font-size: 1rem;
+  line-height: 1.85;
+  letter-spacing: -0.003em;
+  background: var(--c-bg);
+  color: var(--c-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--c-accent);
+  color: var(--c-bg);
+}
+
+/* ==========================================================================
+   대기
+   ========================================================================== */
+
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.haze {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+}
+
+.haze-1 {
+  top: -16vh;
+  left: -8vw;
+  width: 60vw;
+  height: 60vw;
+  background: radial-gradient(circle, var(--ice-sheet) 0%, transparent 68%);
+  opacity: 0.85;
+}
+
+.haze-2 {
+  bottom: -18vh;
+  right: -12vw;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, var(--moss) 0%, transparent 66%);
+  opacity: 0.15;
+}
+
+@media (prefers-color-scheme: dark) {
+  .haze-1 {
+    background: radial-gradient(circle, #24363a 0%, transparent 68%);
+    opacity: 0.9;
+  }
+  .haze-2 { opacity: 0.22; }
+}
+
+/* ==========================================================================
+   헤더 — 유리. 겹칠 때만 경계가 생긴다.
+   ========================================================================== */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-inline);
+  padding: 0.9rem clamp(1.25rem, 5vw, 3rem);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid transparent;
+  /* 제스처와 무관한 색 변화 — transition을 써도 된다 */
+  transition: border-color 0.25s ease;
+}
+
+.site-header.is-overlapping {
+  border-bottom-color: var(--glass-border);
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--c-text);
+  text-decoration: none;
+}
+
+.wordmark-sub {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+}
+
+/* ==========================================================================
+   레이아웃
+   ========================================================================== */
+
+main {
+  max-width: var(--w-wide);
+  margin-inline: auto;
+  padding: 0 clamp(1.25rem, 5vw, 3rem) var(--gap-section);
+}
+
+.section {
+  margin-top: var(--gap-section);
+}
+
+.section-label,
+.eyebrow {
+  margin: 0 0 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  /* 작은 글자는 트래킹을 살짝 벌려야 읽힌다 */
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+}
+
+.section-title {
+  margin: 0 0 var(--gap-inline);
+  font-size: clamp(1.6rem, 3.4vw, 2.3rem);
+  font-weight: 600;
+  /* 커질수록 트래킹은 좁아진다 */
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.section-desc {
+  margin: 0 0 var(--gap-block);
+  max-width: 46ch;
+  color: var(--c-muted);
+}
+
+.section-desc strong {
+  color: var(--c-text);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   히어로
+   ========================================================================== */
+
+.hero {
+  padding-top: clamp(4.5rem, 12vw, 8rem);
+}
+
+.hero h1 {
+  margin: 0 0 var(--gap-inline);
+  font-size: clamp(2.5rem, 8vw, 4.75rem);
+  font-weight: 600;
+  /* 큰 활자 — 좁은 트래킹, 좁은 행간 */
+  line-height: 1.1;
+  letter-spacing: -0.042em;
+}
+
+.hero .accent {
+  color: var(--c-accent);
+}
+
+.tagline {
+  margin: 0 0 var(--gap-inline);
+  max-width: 34ch;
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.015em;
+}
+
+.lede {
+  margin: 0 0 var(--gap-block);
+  max-width: 44ch;
+  color: var(--c-muted);
+}
+
+.hero-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin: 0;
+}
+
+/* ==========================================================================
+   버튼 — 누르는 즉시 반응한다
+   ========================================================================== */
+
+button,
+.hero-links a {
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  /* 300ms 탭 지연 제거 */
+  touch-action: manipulation;
+}
+
+.hero-links button,
+.header-cta {
+  padding: 0.85rem 1.7rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--c-text);
+  color: var(--c-bg);
+  /* 눌림은 제스처가 아니라 상태 변화 — 짧은 transition으로 충분하다 */
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.09s ease-out;
+}
+
+.header-cta {
+  padding: 0.5rem 1.15rem;
+  font-size: 0.84rem;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-color: var(--glass-border);
+  color: var(--c-text);
+}
+
+.hero-links button:hover,
+.header-cta:hover {
+  background: var(--c-accent);
+  color: var(--c-bg);
+  border-color: var(--c-accent);
+}
+
+.hero-links a {
+  align-self: center;
+  padding: 0.85rem 0.4rem;
+  color: var(--c-accent);
+  text-decoration: none;
+  transition: color 0.2s ease, transform 0.09s ease-out;
+}
+
+.hero-links a::after {
+  content: " ›";
+}
+
+.hero-links a:hover {
+  color: var(--c-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.is-pressed {
+  transform: scale(0.97);
+}
+
+.wordmark.is-pressed {
+  transform: scale(0.985);
+}
+
+/* ==========================================================================
+   카드 — 제스처가 걸린 트랙. transition 금지 (JS 스프링이 움직인다)
+   ========================================================================== */
+
+.carousel {
+  overflow: hidden;
+  margin-inline: calc(clamp(1.25rem, 5vw, 3rem) * -1);
+  padding-inline: clamp(1.25rem, 5vw, 3rem);
+  border-radius: var(--radius);
+}
+
+.carousel:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 4px;
+}
+
+.carousel-track {
+  display: flex;
+  gap: var(--gap-inline);
+  list-style: none;
+  padding: 0.35rem 0;
+  margin: 0;
+  cursor: grab;
+  /* 세로 스크롤은 살리고 가로 제스처만 가져간다 */
+  touch-action: pan-y;
+  will-change: transform;
+  /* transition 없음 — 도중에 붙잡을 수 없기 때문 */
+}
+
+.carousel-track:active {
+  cursor: grabbing;
+}
+
+.card {
+  flex: 0 0 min(17rem, 72vw);
+  padding: 1.6rem 1.5rem 1.8rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+  /* 드래그 중 이미지/텍스트가 잡혀 끌리지 않게 */
+  user-select: none;
+}
+
+.card-index {
+  display: block;
+  margin-bottom: 1.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--c-accent);
+}
+
+.card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.card p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.75;
+  color: var(--c-muted);
+}
+
+.carousel-hint {
+  margin: var(--gap-inline) 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--c-muted);
+}
+
+/* ==========================================================================
+   원칙 목록
+   ========================================================================== */
+
+.principle-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--c-hairline);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+}
+
+.principle {
+  padding: clamp(1.8rem, 3.5vw, 2.4rem) clamp(1.4rem, 3vw, 1.9rem);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.principle-num {
+  margin: 0 0 1.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--c-accent);
+}
+
+.principle h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.principle p:last-child {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.8;
+  color: var(--c-muted);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  background: var(--glass-bg-strong);
+}
+
+/* ==========================================================================
+   푸터
+   ========================================================================== */
+
+.site-footer {
+  max-width: var(--w-wide);
+  margin-inline: auto;
+  padding: var(--gap-block) clamp(1.25rem, 5vw, 3rem) clamp(3.5rem, 8vw, 5rem);
+  border-top: 1px solid var(--c-hairline);
+}
+
+.site-footer p {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.footer-small {
+  max-width: 54ch;
+  font-weight: 400 !important;
+  font-size: 0.78rem !important;
+  line-height: 1.8;
+  color: var(--c-muted);
+}
+
+/* ==========================================================================
+   바텀 시트 — 제스처가 걸린 표면. transition 금지.
+   ========================================================================== */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(28, 35, 37, 0.34);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  /* opacity는 JS가 시트 위치에 맞춰 1:1로 갱신한다 */
+}
+
+.scrim[hidden],
+.sheet[hidden] {
+  display: none;
+}
+
+.sheet {
+  position: fixed;
+  z-index: 31;
+  left: 50%;
+  bottom: 0;
+  width: min(30rem, 100%);
+  /* transform으로 세로만 움직이므로, 가로 중앙 정렬은 margin으로 해둔다 */
+  margin-left: min(-15rem, -50%);
+  padding: 0.9rem clamp(1.4rem, 5vw, 2rem) clamp(1.6rem, 5vw, 2rem);
+  border: 1px solid var(--glass-border);
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  backdrop-filter: blur(30px) saturate(150%);
+  box-shadow: 0 -8px 48px rgba(28, 35, 37, 0.16);
+  /* 드래그가 스크롤로 새지 않게 */
+  touch-action: none;
+  will-change: transform;
+  /* transition 없음 — 스프링이 움직이고, 언제든 붙잡힌다 */
+}
+
+.sheet:focus {
+  outline: none;
+}
+
+.sheet-grabber {
+  width: 2.4rem;
+  height: 4px;
+  margin: 0 auto 1.4rem;
+  border-radius: 999px;
+  background: var(--c-muted);
+  opacity: 0.45;
+}
+
+.sheet h2 {
+  margin: 0 0 0.7rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sheet p {
+  margin: 0 0 0.8rem;
+  font-size: 0.9rem;
+  line-height: 1.8;
+  color: var(--c-muted);
+}
+
+.sheet p strong {
+  color: var(--c-text);
+  font-weight: 600;
+}
+
+.sheet-readout {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: 1.2rem 0;
+  padding: 0;
+}
+
+.sheet-readout div {
+  padding: 0.7rem 0.5rem;
+  border: 1px solid var(--c-hairline);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.sheet-readout dt {
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+}
+
+.sheet-readout dd {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-close {
+  width: 100%;
+  padding: 0.9rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--c-text);
+  color: var(--c-bg);
+  transition: background-color 0.2s ease, transform 0.09s ease-out;
+}
+
+.sheet-close:hover {
+  background: var(--c-accent);
+}
+
+/* ==========================================================================
+   접근성 — 줄인 움직임 / 줄인 투명도 / 높은 대비
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* 움직임 대신 짧은 크로스페이드. 제스처는 JS 쪽에서 함께 꺼진다. */
+  .sheet,
+  .carousel-track {
+    transform: none !important;
+  }
+
+  .sheet {
+    animation: fade-in 0.2s ease;
+  }
+
+  .is-pressed {
+    transform: none;
+  }
+
+  .carousel-track {
+    cursor: default;
+    overflow-x: auto;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.96);
+    --glass-bg-strong: #ffffff;
+    --glass-blur: none;
+  }
+
+  .scrim {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .sheet {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --glass-bg: #1a2224;
+      --glass-bg-strong: #222c2e;
+    }
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --glass-border: var(--c-text);
+    --c-muted: #46504f;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --c-muted: #bcc4c4;
+    }
+  }
+}
+
+/* backdrop-filter 미지원 — 불투명도를 올려 가독성을 지킨다 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-bg-strong: rgba(255, 255, 255, 0.94);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --glass-bg: rgba(30, 38, 40, 0.9);
+      --glass-bg-strong: rgba(36, 45, 47, 0.96);
+    }
+  }
+}
+
+@media (max-width: 560px) {
+  .sheet {
+    width: 100%;
+    margin-left: -50%;
+  }
+
+  .sheet-readout {
+    grid-template-columns: 1fr;
+  }
+}

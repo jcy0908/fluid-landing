@@ -1,0 +1,95 @@
+# 感 — Fluid Motion Kit 랜딩
+
+Apple의 *Designing Fluid Interfaces*(WWDC 2018) 원칙을 그대로 지켜 만든 랜딩 페이지.
+프레임워크도, 모션 라이브러리도 쓰지 않습니다. HTML · CSS · JavaScript만 씁니다.
+
+## 이 페이지가 지키는 규칙
+
+### 제스처가 걸린 요소에는 CSS transition을 쓰지 않는다
+
+`transition`과 `@keyframes`는 도중에 붙잡아 되돌릴 수 없습니다. 정해진 시간 동안
+정해진 경로를 재생할 뿐이라, 새 입력이 오면 처음부터 다시 시작하거나 끝나기를
+기다려야 합니다.
+
+그래서 **바텀 시트와 카드 트랙은 JS 스프링이 움직입니다.** CSS에는 이 두 요소의
+`transform`에 대한 어떤 transition도 없습니다.
+
+`transition`은 제스처와 무관한 것에만 씁니다 — 색, 경계선, 눌렸을 때의 축소.
+
+### 닫히는 중에 다시 잡으면 그 자리에서 따라온다
+
+가장 중요한 요구사항입니다. 시트를 아래로 던져 닫다가 사라지기 전에 다시 잡으면,
+닫기를 끝내고 되열리는 게 아니라 **붙잡힌 그 지점에서 손가락을 따라옵니다.**
+
+구현의 핵심은 세 가지입니다.
+
+```js
+function onPointerDown(e) {
+  sheetSpring.stop();        // 1. 진행 중인 모션을 그 자리에서 멈춘다
+  closingIntent = false;     // 2. 닫으려던 '의도'를 무효화한다
+  grabOffset = e.clientY - sheetSpring.value;  // 3. 현재 값에서 이어받는다
+}
+```
+
+`closingIntent`를 목표값 비교(`spring.target !== 0`)로 대신하면 안 됩니다.
+다시 잡은 뒤 원위치로 돌아가 정착하는 순간 "닫으려던 중이었다"고 잘못 판단해
+시트가 사라집니다. 의도는 명시적인 플래그로 둬야 합니다.
+
+### 놓은 자리가 아니라 가고 있던 곳으로 간다
+
+```js
+const projected = spring.value + project(velocity);   // 지수 감쇠 투영
+const shouldClose = projected > sheetHeight * 0.4;
+spring.setTarget(shouldClose ? sheetHeight : 0, velocity); // 속도를 그대로 인계
+```
+
+교과서의 `v²/(2a)`가 아니라 Apple 샘플 코드의 지수 감쇠 형태를 씁니다.
+
+### 그 밖에
+
+- **1:1 추적** — 잡은 지점(`grabOffset`)을 기억합니다. 중앙으로 튀면 환상이 깨집니다.
+- **10px 히스테리시스** — 탭과 드래그를 가릅니다.
+- **러버밴딩** — 경계 밖에서는 저항이 점점 커집니다. 딱 멈추면 고장 난 것처럼 보입니다.
+- **즉각 반응** — 피드백은 `click`이 아니라 `pointerdown`에서 나옵니다.
+- **스크롤 엣지** — 헤더 밑 1px 실선 대신, 내용이 유리와 겹칠 때만 경계가 생깁니다.
+- **타이포그래피** — 트래킹은 크기별로 다릅니다. 큰 활자는 좁게(`-0.042em`),
+  본문은 0 근처, 작은 라벨은 넓게(`0.24em`).
+
+## 접근성
+
+세 가지 신호에 각각 대응합니다.
+
+| 설정 | 대응 |
+| --- | --- |
+| `prefers-reduced-motion` | 스프링과 드래그를 끄고 짧은 크로스페이드로. 캐러셀은 네이티브 가로 스크롤로 |
+| `prefers-reduced-transparency` | 유리를 걷어내고 불투명하게 |
+| `prefers-contrast: more` | 경계선을 본문색으로, 보조 텍스트 대비를 올림 |
+
+키보드로도 캐러셀을 넘길 수 있고(`←` `→`), 시트는 `Esc`로 닫힙니다.
+`backdrop-filter` 미지원 브라우저에서는 `@supports`로 불투명도를 올려 가독성을 지킵니다.
+
+## 견고성
+
+- **숨겨진 탭** — `requestAnimationFrame`이 오지 않으면 모션이 끝나지 않고
+  `onRest`도 불리지 않아 요소가 화면 밖에 얼어붙습니다. `document.hidden`일 때는
+  즉시 목표값으로 종료합니다.
+- **감시견** — 창이 완전히 가려지면 `visibilityState`가 `visible`인데도 rAF가
+  오지 않는 경우가 있습니다. 1초 안에 한 프레임도 오지 않으면 목표값으로 끝냅니다.
+- **큰 프레임 간격** — `dt`에 상한(1/30초)을 둬서 탭 복귀 시 물리가 폭발하지 않게 합니다.
+
+## 실행
+
+```bash
+python3 -m http.server 4200
+```
+
+빌드 과정이 없습니다. `index.html`을 열기만 하면 됩니다.
+
+## 파일
+
+```
+index.html
+css/style.css     디자인 시스템. 제스처 요소에는 transition 없음
+js/fluid.js       스프링, 모멘텀 투영, 러버밴딩, 속도 추적
+js/main.js        시트 · 캐러셀 · 즉각 반응 · 스크롤 엣지
+```

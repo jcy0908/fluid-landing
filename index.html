@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>感 — 손에 붙는 인터페이스</title>
+<meta name="description" content="제스처가 걸린 모든 것을 스프링으로 움직이는 웹 모션 키트. 닫히는 중에 다시 잡으면 손가락을 따라옵니다.">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- 대기 — 유리 뒤에서 번지는 빛. 고정되어 있고 움직이지 않는다. -->
+<div class="atmosphere" aria-hidden="true">
+  <span class="haze haze-1"></span>
+  <span class="haze haze-2"></span>
+</div>
+
+<header class="site-header" id="site-header">
+  <a class="wordmark" href="#top">感<span class="wordmark-sub">Fluid Motion Kit</span></a>
+  <button class="header-cta" type="button" data-open-sheet>시작하기</button>
+</header>
+
+<main id="top">
+
+  <!-- Hero -->
+  <section class="hero">
+    <p class="eyebrow">Designing Fluid Interfaces</p>
+    <h1>손을 떼기 전에<br><span class="accent">이미 알고 있다.</span></h1>
+    <p class="tagline">제스처가 걸린 모든 것을 스프링으로 움직이는 웹 모션 키트.</p>
+    <p class="lede">
+      정해진 시간 동안 재생되는 애니메이션은 새 입력에 답할 수 없습니다.
+      스프링은 답합니다. 목표만 바꾸면 되고, 움직임은 끊기지 않습니다.
+    </p>
+    <p class="hero-links">
+      <button type="button" data-open-sheet>직접 만져보기</button>
+      <a href="#principles">원칙 보기</a>
+    </p>
+  </section>
+
+  <!-- 살아있는 데모: 카드 -->
+  <section class="section" aria-labelledby="demo-title">
+    <p class="section-label">Live</p>
+    <h2 class="section-title" id="demo-title">던져보세요</h2>
+    <p class="section-desc">
+      옆으로 끌었다 놓으면, 놓은 자리가 아니라 <strong>가고 있던 곳</strong>으로 갑니다.
+      끝에서는 딱 멈추지 않고 저항이 커집니다.
+    </p>
+
+    <div class="carousel" id="carousel">
+      <ul class="carousel-track" id="carousel-track">
+        <li class="card"><span class="card-index">01</span><h3>즉각 반응</h3><p>손을 뗄 때가 아니라 누르는 순간 반응합니다.</p></li>
+        <li class="card"><span class="card-index">02</span><h3>1:1 추적</h3><p>잡은 지점을 기억한 채 손가락에 붙어 움직입니다.</p></li>
+        <li class="card"><span class="card-index">03</span><h3>중단 가능</h3><p>움직이는 중에 붙잡아 되돌릴 수 있습니다.</p></li>
+        <li class="card"><span class="card-index">04</span><h3>속도 인계</h3><p>손가락의 속도를 그대로 물려받습니다.</p></li>
+        <li class="card"><span class="card-index">05</span><h3>모멘텀 투영</h3><p>가고 있던 곳을 계산해 그쪽으로 보냅니다.</p></li>
+      </ul>
+      <p class="carousel-hint" id="carousel-hint" aria-live="polite">1 / 5</p>
+    </div>
+  </section>
+
+  <!-- 원칙 -->
+  <section class="section" id="principles" aria-labelledby="principles-title">
+    <p class="section-label">Principles</p>
+    <h2 class="section-title" id="principles-title">네 가지만 지킵니다</h2>
+    <ul class="principle-list">
+      <li class="principle">
+        <p class="principle-num">01</p>
+        <h3>지연을 없앤다</h3>
+        <p>반응이 늦는 순간 직접 만지는 느낌은 절벽처럼 떨어집니다.
+        피드백은 <code>click</code>이 아니라 <code>pointerdown</code>에서 나옵니다.</p>
+      </li>
+      <li class="principle">
+        <p class="principle-num">02</p>
+        <h3>지금 보이는 값에서 시작한다</h3>
+        <p>새 모션을 목표값에서 시작하면 눈에 띄게 튑니다.
+        스프링은 언제나 현재 값에서 이어집니다.</p>
+      </li>
+      <li class="principle">
+        <p class="principle-num">03</p>
+        <h3>언제든 되돌릴 수 있다</h3>
+        <p>닫히는 중에 다시 잡으면 닫기를 끝내고 여는 게 아니라,
+        그 자리에서 손가락을 따라옵니다.</p>
+      </li>
+      <li class="principle">
+        <p class="principle-num">04</p>
+        <h3>속도를 물려준다</h3>
+        <p>끄는 동작과 이어지는 애니메이션 사이에 이음매가 없어야
+        비로소 물건처럼 느껴집니다.</p>
+      </li>
+    </ul>
+  </section>
+
+  <!-- 이음매 -->
+  <section class="section" aria-labelledby="cta-title">
+    <p class="section-label">Try</p>
+    <h2 class="section-title" id="cta-title">닫는 중에 다시 잡아보세요</h2>
+    <p class="section-desc">
+      시트를 아래로 던져 닫다가, 사라지기 전에 다시 붙잡으면
+      닫기를 마치고 되열리는 게 아니라 <strong>그 지점에서 손가락을 따라옵니다.</strong>
+    </p>
+    <p class="hero-links">
+      <button type="button" data-open-sheet>시트 열기</button>
+    </p>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>感 — Fluid Motion Kit</p>
+  <p class="footer-small">
+    프레임워크 없이 HTML, CSS, JavaScript로만 만들었습니다.
+    제스처가 걸린 요소에는 CSS transition을 쓰지 않습니다 — 도중에 붙잡을 수 없기 때문입니다.
+  </p>
+</footer>
+
+<!-- 바텀 시트 — 잡아서 내릴 수 있고, 닫히는 중에도 다시 잡힌다 -->
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+  <div class="sheet-grabber" aria-hidden="true"></div>
+  <h2 id="sheet-title">이 시트가 예제입니다</h2>
+  <p>
+    손잡이를 잡고 아래로 끌어보세요. 손가락을 1:1로 따라옵니다.
+    위로 끌면 저항이 점점 커집니다.
+  </p>
+  <p>
+    아래로 던져 닫히는 도중에 <strong>다시 붙잡으면</strong>, 닫기를 끝내고
+    되열리는 게 아니라 그 자리에서 바로 손가락을 따라옵니다.
+  </p>
+  <dl class="sheet-readout" aria-live="off">
+    <div><dt>위치</dt><dd id="ro-y">0px</dd></div>
+    <div><dt>속도</dt><dd id="ro-v">0px/s</dd></div>
+    <div><dt>상태</dt><dd id="ro-state">정지</dd></div>
+  </dl>
+  <button class="sheet-close" type="button" id="sheet-close">닫기</button>
+</section>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
