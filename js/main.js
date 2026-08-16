@@ -59,7 +59,11 @@ function setSheetState(text) {
 
 function setBackgroundInert(value) {
   inertRoots.forEach((root) => {
-    if (root) root.inert = value;
+    if (!root) return;
+    root.inert = value;
+    root.toggleAttribute('inert', value);
+    if (value) root.setAttribute('aria-hidden', 'true');
+    else root.removeAttribute('aria-hidden');
   });
   document.body.classList.toggle('is-modal-open', value);
   document.documentElement.classList.toggle('is-modal-open', value);
@@ -101,6 +105,7 @@ function showSheet(event) {
   closingIntent = false;
   sheet.hidden = false;
   scrim.hidden = false;
+  sheetClose.focus({ preventScroll: true });
   setBackgroundInert(true);
   sheetHeight = sheet.getBoundingClientRect().height + 2;
   sheetSpring.damping = 1;
@@ -114,8 +119,6 @@ function showSheet(event) {
     sheetSpring.setTarget(0);
     setSheetState('opening');
   }
-
-  requestAnimationFrame(() => sheetClose.focus({ preventScroll: true }));
 }
 
 function releaseActiveSheetPointer() {
