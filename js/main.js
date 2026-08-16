@@ -355,3 +355,131 @@ finishOnHide(sheetSpring, trackSpring);
 
 // 손잡이는 시트 전체가 잡힌다는 걸 알리는 표시일 뿐, 실제 판정은 시트가 한다
 grabber.setAttribute('aria-hidden', 'true');
+
+// ==========================================================================
+// 6. 레인 — 네 원칙을 읽지 말고 만져서 확인하는 자리
+//
+//    모션 키트를 소개하면서 원칙을 글로만 두면 그 글이 설명이 아니라 광고가
+//    된다. 레인 하나에 네 원칙이 모두 들어 있고, 원칙마다 무엇을 해 보라고
+//    다르게 안내한다.
+//
+//      누르면            → 손을 떼기 전에 불이 들어온다      (지연 없음)
+//      다른 곳을 누르면   → 현재 위치에서 이어서 간다         (현재 값에서 시작)
+//      가는 중에 잡으면   → 그 자리에서 손가락을 따라온다     (되돌릴 수 있음)
+//      던지면            → 가고 있던 곳으로 간다             (속도 인계·투영)
+//
+//    설명은 글이 하고 손은 레인이 하므로, 레인은 aria-hidden으로 둔다.
+//    키보드 사용자가 잃는 정보가 없고, 이름 없는 조작 대상을 만들지 않는다.
+// ==========================================================================
+
+document.querySelectorAll('.lane').forEach((lane) => {
+  const puck = lane.querySelector('.puck');
+  const mark = lane.querySelector('.lane-mark');
+  if (!puck) return;
+
+  const spring = new Spring({
+    damping: 1,
+    response: 0.35,
+    value: 0,
+    onUpdate: (x) => {
+      puck.style.transform = `translate3d(${x}px, 0, 0)`;
+    },
+  });
+
+  const tracker = new VelocityTracker();
+  let dragging = false;
+  let committed = false;
+  let grabOffset = 0;
+
+  const maxX = () => Math.max(0, lane.clientWidth - puck.offsetWidth);
+  const clamp = (x) => Math.max(0, Math.min(maxX(), x));
+
+  // 앞선 던지기의 숨김 타이머가 살아 있으면 새로 뜬 표시를 지워 버린다.
+  // 표시를 새로 켤 때마다 이전 타이머를 반드시 취소한다.
+  let markTimer = null;
+
+  function hideMark() {
+    clearTimeout(markTimer);
+    markTimer = null;
+    if (mark) mark.classList.remove('is-on');
+  }
+
+  function showMark(x) {
+    if (!mark) return;
+    clearTimeout(markTimer);
+    mark.style.transform = `translate3d(${x}px, 0, 0)`;
+    mark.classList.add('is-on');
+    markTimer = setTimeout(hideMark, 1200);
+  }
+
+  lane.addEventListener('pointerdown', (e) => {
+    // 반응은 손을 떼는 순간이 아니라 누르는 순간이다
+    lane.classList.add('is-lit');
+    hideMark();
+
+    if (prefersReducedMotion()) {
+      const rect = lane.getBoundingClientRect();
+      spring.setValue(clamp(e.clientX - rect.left - puck.offsetWidth / 2));
+      return;
+    }
+
+    const onPuck = Math.abs(e.clientX - lane.getBoundingClientRect().left - spring.value) < puck.offsetWidth;
+
+    if (onPuck) {
+      // 가는 중이어도 즉시 손가락에 넘긴다
+      dragging = true;
+      committed = false;
+      spring.stop();
+      grabOffset = e.clientX - spring.value;
+      tracker.reset();
+      tracker.add(e.clientX);
+      lane.setPointerCapture?.(e.pointerId);
+    } else {
+      // 빈 곳을 누르면 목표만 바꾼다. 현재 값에서 이어지므로 튀지 않는다.
+      const rect = lane.getBoundingClientRect();
+      spring.setTarget(clamp(e.clientX - rect.left - puck.offsetWidth / 2));
+    }
+  });
+
+  lane.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const raw = e.clientX - grabOffset;
+    if (!committed && Math.abs(raw - spring.value) < HYSTERESIS) return;
+    committed = true;
+    tracker.add(e.clientX);
+
+    let x = raw;
+    // 끝에서는 딱 멈추지 않고 저항이 커진다
+    if (x < 0) x = -rubberband(-x, lane.clientWidth);
+    else if (x > maxX()) x = maxX() + rubberband(x - maxX(), lane.clientWidth);
+
+    spring.setValue(x, tracker.velocity);
+  });
+
+  function endLaneDrag(e) {
+    lane.classList.remove('is-lit');
+    if (!dragging) return;
+    dragging = false;
+    lane.releasePointerCapture?.(e.pointerId);
+    if (!committed) return;
+
+    const velocity = tracker.velocity;
+    // 놓은 자리가 아니라 가고 있던 곳으로 간다
+    const projected = clamp(spring.value + project(velocity));
+
+    showMark(projected + puck.offsetWidth / 2);
+
+    spring.damping = 0.85; // 던졌으니 약간의 탄성
+    spring.setTarget(projected, velocity);
+    setTimeout(() => {
+      spring.damping = 1;
+    }, 700);
+  }
+
+  lane.addEventListener('pointerup', endLaneDrag);
+  lane.addEventListener('pointercancel', endLaneDrag);
+  lane.addEventListener('pointerleave', () => lane.classList.remove('is-lit'));
+
+  // 폭이 바뀌면 퍽이 레인 밖으로 나갈 수 있다
+  addEventListener('resize', () => spring.setValue(clamp(spring.value)));
+});

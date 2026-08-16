@@ -418,13 +418,21 @@ button,
   padding: 0;
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  /* 항목이 네 개라 auto-fit이 3열을 만들면 한 칸이 고아로 남는다.
+     2열로 고정하면 어느 폭에서도 2×2로 떨어진다. */
+  grid-template-columns: 1fr;
   gap: 1px;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   background: var(--c-hairline);
   box-shadow: var(--glass-shadow);
   overflow: hidden;
+}
+
+@media (min-width: 40rem) {
+  .principle-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .principle {
@@ -449,12 +457,74 @@ button,
   letter-spacing: -0.015em;
 }
 
-.principle p:last-child {
+.principle > p:nth-of-type(2) {
   margin: 0;
   font-size: 0.88rem;
   line-height: 1.8;
   color: var(--c-muted);
 }
+
+/* --------------------------------------------------------------------------
+   레인 — 원칙을 읽지 말고 만져 보는 자리
+
+   모션 키트를 소개하면서 네 원칙을 글로만 두면, 그 글이 설명이 아니라
+   광고가 된다. 각 원칙 밑에 그 원칙 하나를 확인할 수 있는 레인을 둔다.
+   제스처가 걸린 요소이므로 transform에 transition을 쓰지 않는다.
+   -------------------------------------------------------------------------- */
+
+.lane {
+  position: relative;
+  height: 2.6rem;
+  margin-top: 1.6rem;
+  border-radius: 999px;
+  background: var(--c-hairline);
+  cursor: grab;
+  touch-action: pan-y; /* 세로 스크롤은 살리고 가로 제스처만 가져간다 */
+  overflow: hidden;
+}
+
+/* 반응은 click이 아니라 pointerdown에서. 이 레인의 존재 이유다. */
+.lane.is-lit {
+  background: color-mix(in srgb, var(--c-accent) 18%, var(--c-hairline));
+}
+
+.puck {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin-top: -1.3rem;
+  border-radius: 999px;
+  background: var(--c-accent);
+  will-change: transform;
+  /* transition 없음 — 도중에 붙잡을 수 없기 때문 */
+}
+
+/* 던졌을 때 '가고 있던 곳'을 표시한다 */
+.lane-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--c-text);
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+}
+
+.lane-mark.is-on {
+  opacity: 0.35;
+}
+
+.lane-try {
+  margin: 0.7rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: var(--c-muted);
+}
+
 
 code {
   font-family: var(--font-mono);
@@ -626,6 +696,16 @@ code {
 
   .is-pressed {
     transform: none;
+  }
+
+  /* 레인은 남기되 미끄러지지 않는다. 누르면 그 자리에 바로 놓인다.
+     움직임을 줄이는 것이지 확인할 방법을 없애는 것이 아니다. */
+  .lane {
+    cursor: default;
+  }
+
+  .lane-mark {
+    display: none;
   }
 
   /* 잘라내는 상자는 .carousel이다. 네이티브 스크롤은 여기에 걸어야 한다.
