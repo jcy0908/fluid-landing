@@ -1,140 +1,340 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>感 — 손에 붙는 인터페이스</title>
-<meta name="description" content="제스처가 걸린 모든 것을 스프링으로 움직이는 웹 모션 키트. 닫히는 중에 다시 잡으면 손가락을 따라옵니다.">
-<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FLUID MOTION / STUDY 01 — 중단 가능한 웹 모션</title>
+  <meta name="description" content="위치·속도·목표·의도를 분리해, 사용자의 다음 판단에 계속 답하는 중단 가능한 웹 모션 시스템을 설계하고 검증한 정찬용의 브라우저 스터디.">
+  <meta name="theme-color" content="#f0efea">
+  <link rel="canonical" href="https://jcy0908.github.io/fluid-landing/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:title" content="FLUID MOTION / STUDY 01">
+  <meta property="og:description" content="움직임을 재생하지 않고, 계속 대화하게 만들기. 중단 가능한 웹 모션 시스템에 대한 브라우저 스터디.">
+  <meta property="og:url" content="https://jcy0908.github.io/fluid-landing/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="FLUID MOTION / STUDY 01">
+  <meta name="twitter:description" content="위치·속도·목표·의도를 분리한 중단 가능한 웹 모션 스터디.">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
+  <a class="skip-link" href="#content">본문으로 건너뛰기</a>
 
-<!-- 대기 — 유리 뒤에서 번지는 빛. 고정되어 있고 움직이지 않는다. -->
-<div class="atmosphere" aria-hidden="true">
-  <span class="haze haze-1"></span>
-  <span class="haze haze-2"></span>
-</div>
+  <header class="site-header" id="site-header">
+    <a class="wordmark" href="#top" aria-label="Fluid Motion Study 처음으로">
+      <span class="wordmark-main">FLUID MOTION</span>
+      <span class="wordmark-sub">STUDY 01 / 感</span>
+    </a>
+    <p class="live-flag"><span aria-hidden="true"></span>State / live</p>
+    <nav class="site-nav" aria-label="프로젝트 섹션">
+      <a href="#question">질문</a>
+      <a href="#reframe">재정의</a>
+      <a href="#tests">데모</a>
+      <a href="#implementation">구현</a>
+      <a href="#critique">비평</a>
+    </nav>
+    <button class="header-cta" type="button" data-open-sheet>Test 02 열기</button>
+  </header>
 
-<header class="site-header" id="site-header">
-  <a class="wordmark" href="#top">感<span class="wordmark-sub">Fluid Motion Kit</span></a>
-  <button class="header-cta" type="button" data-open-sheet>시작하기</button>
-</header>
+  <main id="content">
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">Browser interaction study / 2026</p>
+        <h1 id="hero-title">움직임을 재생하지 않고,<br><em>계속 대화하게 만들기.</em></h1>
+        <p class="hero-question">사용자가 모션 도중 마음을 바꿀 때, 현재 위치와 속도를 보존하며 통제권을 즉시 돌려줄 수 있는가?</p>
+        <p class="hero-links">
+          <a class="button-link" href="#tests">실험 시작</a>
+          <a href="#question">과정 읽기 <span aria-hidden="true">↘</span></a>
+        </p>
+      </div>
 
-<main id="top">
+      <aside class="telemetry" aria-labelledby="telemetry-title">
+        <p class="instrument-label" id="telemetry-title">State vector / current model</p>
+        <dl>
+          <div><dt>X</dt><dd id="hero-x">0.00</dd><span>px</span></div>
+          <div><dt>V</dt><dd id="hero-v">0</dd><span>px/s</span></div>
+          <div><dt>Target</dt><dd id="hero-target">0</dd><span>px</span></div>
+          <div><dt>Intent</dt><dd id="hero-intent">rest</dd><span>state</span></div>
+        </dl>
+        <div class="telemetry-line" aria-hidden="true"><i></i></div>
+        <p>위치·속도·목표·의도를 하나의 재생 시간 대신 계속 갱신한다.</p>
+      </aside>
+    </section>
 
-  <!-- Hero -->
-  <section class="hero">
-    <p class="eyebrow">Designing Fluid Interfaces</p>
-    <h1>손을 떼기 전에<br><span class="accent">이미 알고 있다.</span></h1>
-    <p class="tagline">제스처가 걸린 모든 것을 스프링으로 움직이는 웹 모션 키트.</p>
-    <p class="lede">
-      정해진 시간 동안 재생되는 애니메이션은 새 입력에 답할 수 없습니다.
-      스프링은 답합니다. 목표만 바꾸면 되고, 움직임은 끊기지 않습니다.
-    </p>
-    <p class="hero-links">
-      <button type="button" data-open-sheet>직접 만져보기</button>
-      <a href="#principles">원칙 보기</a>
-    </p>
-  </section>
-
-  <!-- 살아있는 데모: 카드 -->
-  <section class="section" aria-labelledby="demo-title">
-    <p class="section-label">Live</p>
-    <h2 class="section-title" id="demo-title">던져보세요</h2>
-    <p class="section-desc">
-      옆으로 끌었다 놓으면, 놓은 자리가 아니라 <strong>가고 있던 곳</strong>으로 갑니다.
-      끝에서는 딱 멈추지 않고 저항이 커집니다.
-    </p>
-
-    <div class="carousel" id="carousel">
-      <ul class="carousel-track" id="carousel-track">
-        <li class="card"><span class="card-index">01</span><h3>즉각 반응</h3><p>손을 뗄 때가 아니라 누르는 순간 반응합니다.</p></li>
-        <li class="card"><span class="card-index">02</span><h3>1:1 추적</h3><p>잡은 지점을 기억한 채 손가락에 붙어 움직입니다.</p></li>
-        <li class="card"><span class="card-index">03</span><h3>중단 가능</h3><p>움직이는 중에 붙잡아 되돌릴 수 있습니다.</p></li>
-        <li class="card"><span class="card-index">04</span><h3>속도 인계</h3><p>손가락의 속도를 그대로 물려받습니다.</p></li>
-        <li class="card"><span class="card-index">05</span><h3>모멘텀 투영</h3><p>가고 있던 곳을 계산해 그쪽으로 보냅니다.</p></li>
-      </ul>
-      <p class="carousel-hint" id="carousel-hint" aria-live="polite">1 / 5</p>
-    </div>
-  </section>
-
-  <!-- 원칙 -->
-  <section class="section" id="principles" aria-labelledby="principles-title">
-    <p class="section-label">Principles</p>
-    <h2 class="section-title" id="principles-title">네 가지만 지킵니다</h2>
-    <ul class="principle-list">
-      <li class="principle">
-        <p class="principle-num">01</p>
-        <h3>지연을 없앤다</h3>
-        <p>반응이 늦는 순간 직접 만지는 느낌은 절벽처럼 떨어집니다.
-        피드백은 <code>click</code>이 아니라 <code>pointerdown</code>에서 나옵니다.</p>
-      </li>
-      <li class="principle">
-        <p class="principle-num">02</p>
-        <h3>지금 보이는 값에서 시작한다</h3>
-        <p>새 모션을 목표값에서 시작하면 눈에 띄게 튑니다.
-        스프링은 언제나 현재 값에서 이어집니다.</p>
-      </li>
-      <li class="principle">
-        <p class="principle-num">03</p>
-        <h3>언제든 되돌릴 수 있다</h3>
-        <p>닫히는 중에 다시 잡으면 닫기를 끝내고 여는 게 아니라,
-        그 자리에서 손가락을 따라옵니다.</p>
-      </li>
-      <li class="principle">
-        <p class="principle-num">04</p>
-        <h3>속도를 물려준다</h3>
-        <p>끄는 동작과 이어지는 애니메이션 사이에 이음매가 없어야
-        비로소 물건처럼 느껴집니다.</p>
-      </li>
+    <ul class="scale-strip" aria-label="프로젝트 규모">
+      <li><strong>02</strong><span>live gesture tests</span></li>
+      <li><strong>04</strong><span>explicit states</span></li>
+      <li><strong>05</strong><span>operating rules</span></li>
+      <li><strong>00</strong><span>motion libraries</span></li>
     </ul>
+
+    <section class="case-section" id="question" aria-labelledby="question-title">
+      <div class="section-rail">
+        <p>01 / Question</p>
+        <p>문제 설정</p>
+      </div>
+      <div class="section-body">
+        <p class="section-kicker">Project brief</p>
+        <h2 id="question-title">‘부드러움’을 프레임 수가 아닌<br>통제권의 연속성으로 다시 묻다.</h2>
+        <p class="lead-copy">빠른 애니메이션도 사용자가 방향을 바꾸는 순간 입력을 잃으면 끊겨 보입니다. 이 작업은 정해진 시퀀스를 더 매끈하게 만드는 대신, 진행 중인 모션을 언제든 다시 잡고 다른 목표로 보낼 수 있는 상태 시스템을 설계합니다.</p>
+
+        <dl class="brief-grid">
+          <div>
+            <dt>Question</dt>
+            <dd>새 입력이 들어온 바로 그 프레임에 기존 움직임을 넘겨줄 수 있는가?</dd>
+          </div>
+          <div>
+            <dt>Reframe</dt>
+            <dd>시간 기반 재생 문제를 현재값·속도·목표·의도의 상태 문제로 바꿨다.</dd>
+          </div>
+          <div>
+            <dt>Constraint</dt>
+            <dd>HTML, CSS, JavaScript만 사용. 외부 모션 라이브러리 없음.</dd>
+          </div>
+          <div>
+            <dt>Output</dt>
+            <dd>가로 트랙, 중단 가능한 시트, 스프링 계기판, 실패 조건 기록.</dd>
+          </div>
+        </dl>
+
+        <p class="source-note">출발점은 Apple의 <a href="https://developer.apple.com/videos/play/wwdc2018/803/" target="_blank" rel="noopener noreferrer">Designing Fluid Interfaces (WWDC18)</a>입니다. 원리를 웹 입력 환경에서 다시 구현한 개인 스터디이며 Apple의 제품 코드나 소속 프로젝트가 아닙니다.</p>
+      </div>
+    </section>
+
+    <section class="case-section" id="reframe" aria-labelledby="reframe-title">
+      <div class="section-rail">
+        <p>02 / Reframe</p>
+        <p>대안 비교</p>
+      </div>
+      <div class="section-body">
+        <p class="section-kicker">Decision ledger</p>
+        <h2 id="reframe-title">재생 시간을 고르는 대신,<br>상태가 다음 프레임을 결정하게 했다.</h2>
+
+        <div class="comparison" role="table" aria-label="모션 구현 방식 비교">
+          <div class="comparison-head" role="row">
+            <span role="columnheader">Approach</span>
+            <span role="columnheader">중간 입력</span>
+            <span role="columnheader">속도 인계</span>
+            <span role="columnheader">Decision</span>
+          </div>
+          <div role="row">
+            <strong role="cell">CSS transition</strong>
+            <span role="cell">새 목표로 전환 가능</span>
+            <span role="cell">브라우저 계산에 의존</span>
+            <span role="cell">비선택</span>
+          </div>
+          <div role="row">
+            <strong role="cell">Keyframes / timeline</strong>
+            <span role="cell">시간 제어 가능</span>
+            <span role="cell">직접 상태 설계 필요</span>
+            <span role="cell">비선택</span>
+          </div>
+          <div class="is-selected" role="row">
+            <strong role="cell">Stateful spring</strong>
+            <span role="cell">현재값에서 재지정</span>
+            <span role="cell">명시적으로 보존</span>
+            <span role="cell">Selected</span>
+          </div>
+        </div>
+        <p class="fine-print">CSS transition과 Web Animations도 중단·반전할 수 있습니다. 이 프로젝트가 스프링을 택한 이유는 “다른 방법은 불가능해서”가 아니라 위치와 속도, 사용자의 의도를 같은 모델에서 직접 관찰하고 넘겨주기 위해서입니다.</p>
+      </div>
+    </section>
+
+    <section class="case-section tests-section" id="tests" aria-labelledby="tests-title">
+      <div class="section-rail">
+        <p>03 / Field tests</p>
+        <p>직접 검증</p>
+      </div>
+      <div class="section-body">
+        <p class="section-kicker">Test 01 / momentum track</p>
+        <h2 id="tests-title">놓은 위치가 아니라<br>가고 있던 방향을 읽는다.</h2>
+        <p class="lead-copy">카드를 옆으로 끌어 던져보세요. 짧은 이동 이력으로 속도를 추정하고, 감속 뒤 도달할 지점을 투영한 다음 가장 가까운 스냅 포인트를 선택합니다. 움직이는 중 다시 잡으면 현재 위치에서 즉시 이어집니다.</p>
+
+        <div class="carousel" id="carousel" aria-describedby="carousel-help">
+          <div class="track-ruler" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <ul class="carousel-track" id="carousel-track">
+            <li class="card"><span class="card-index">01 / Input</span><h3>즉각 피드백</h3><p>확정 동작은 click에서 처리하되, 눌림 피드백은 pointerdown에서 시작합니다.</p></li>
+            <li class="card"><span class="card-index">02 / Track</span><h3>잡은 지점 보존</h3><p>grab offset을 기억해 질량이 손가락 중앙으로 튀지 않게 합니다.</p></li>
+            <li class="card"><span class="card-index">03 / Interrupt</span><h3>현재값 인계</h3><p>진행 중인 스프링을 멈추고 화면에 보이는 좌표를 입력에 넘깁니다.</p></li>
+            <li class="card"><span class="card-index">04 / Velocity</span><h3>짧은 이력 평균</h3><p>최근 포인터 샘플만 사용하고, 정지 뒤 남은 과거 속도는 버립니다.</p></li>
+            <li class="card"><span class="card-index">05 / Project</span><h3>목표 투영</h3><p>속도에서 예상 위치를 계산해 가장 가까운 스냅 포인트를 고릅니다.</p></li>
+          </ul>
+          <div class="carousel-status">
+            <p id="carousel-help">드래그하거나 좌우 화살표 키로 이동</p>
+            <p><span>Snap</span> <output id="carousel-hint" aria-live="polite">01 / 01</output></p>
+            <p><span>Velocity</span> <output id="track-velocity">0 px/s</output></p>
+          </div>
+        </div>
+
+        <div class="evidence-chain" aria-label="입력에서 출력까지의 구현 흐름">
+          <article><p>01 / Evidence</p><h3>현재 좌표</h3><code>spring.value</code><span>화면에 보이는 값</span></article>
+          <article><p>02 / Interpret</p><h3>이동 속도</h3><code>tracker.velocity</code><span>최근 입력의 방향</span></article>
+          <article><p>03 / Decide</p><h3>예상 목표</h3><code>value + project(v)</code><span>감속 뒤 도착점</span></article>
+          <article><p>04 / Implement</p><h3>상태 전환</h3><code>setTarget(target, v)</code><span>위치와 속도 인계</span></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="case-section" id="instrument" aria-labelledby="instrument-title">
+      <div class="section-rail">
+        <p>04 / Instrument</p>
+        <p>변수 실험</p>
+      </div>
+      <div class="section-body">
+        <p class="section-kicker">Motion instrument / editable model</p>
+        <h2 id="instrument-title">같은 목표도 감쇠·반응·초기 속도에 따라<br>서로 다른 판단처럼 보인다.</h2>
+        <p class="lead-copy">값을 바꾸고 Launch를 누르세요. 움직이는 중 Reverse를 누르면 현재 위치와 속도를 가진 채 목표만 반대로 바뀝니다.</p>
+
+        <div class="motion-instrument" id="motion-instrument">
+          <div class="instrument-stage" id="instrument-stage" aria-label="조절한 스프링의 움직임 시각화">
+            <div class="stage-axis" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            <span class="stage-target stage-target-a" aria-hidden="true">A</span>
+            <span class="stage-target stage-target-b" aria-hidden="true">B</span>
+            <button class="stage-mass" id="stage-mass" type="button" aria-label="스프링 질량. 누르면 목표를 반전합니다."><span>01</span></button>
+          </div>
+
+          <form class="instrument-controls" id="instrument-controls">
+            <label>
+              <span>Damping <output for="damping" id="damping-out">1.00</output></span>
+              <input type="range" id="damping" name="damping" min="0.55" max="1.15" step="0.05" value="1">
+            </label>
+            <label>
+              <span>Response <output for="response" id="response-out">0.40s</output></span>
+              <input type="range" id="response" name="response" min="0.2" max="0.8" step="0.05" value="0.4">
+            </label>
+            <label>
+              <span>Initial velocity <output for="initial-velocity" id="velocity-out">900 px/s</output></span>
+              <input type="range" id="initial-velocity" name="initialVelocity" min="-1800" max="1800" step="100" value="900">
+            </label>
+            <div class="instrument-actions">
+              <button type="button" id="instrument-launch">Launch / Reverse</button>
+              <button type="reset">Reset</button>
+            </div>
+          </form>
+
+          <dl class="instrument-readout" aria-live="off">
+            <div><dt>Position</dt><dd id="instrument-x">0.00</dd><span>px</span></div>
+            <div><dt>Velocity</dt><dd id="instrument-v">0</dd><span>px/s</span></div>
+            <div><dt>Target</dt><dd id="instrument-target">A</dd><span>state</span></div>
+            <div><dt>Status</dt><dd id="instrument-status">ready</dd><span>model</span></div>
+          </dl>
+          <p class="sr-only" id="instrument-live" aria-live="polite">스프링 실험 준비됨</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="case-section" id="implementation" aria-labelledby="implementation-title">
+      <div class="section-rail">
+        <p>05 / Model</p>
+        <p>구현 규칙</p>
+      </div>
+      <div class="section-body">
+        <p class="section-kicker">Operating rules</p>
+        <h2 id="implementation-title">감각적인 움직임을<br>검사 가능한 규칙으로 바꿨다.</h2>
+
+        <ol class="principle-list">
+          <li><span>01</span><h3>입력과 확정을 분리한다</h3><p>pointerdown에는 즉각 피드백을 주고, click 또는 pointerup에서 행동을 확정한다.</p><code>feedback ≠ action</code></li>
+          <li><span>02</span><h3>지금 보이는 값에서 시작한다</h3><p>새 모션은 목표값이 아닌 현재 position과 velocity를 이어받는다.</p><code>next ← current</code></li>
+          <li><span>03</span><h3>목표와 의도를 분리한다</h3><p>닫힘 목표와 사용자의 닫기 의도를 별도 상태로 둬 재그랩 뒤 오판을 막는다.</p><code>target ≠ intent</code></li>
+          <li><span>04</span><h3>속도는 유효한 동안만 쓴다</h3><p>최근 100ms 이력만 남기고, 멈춰 있던 시간이 길면 속도를 0으로 본다.</p><code>v = Δx / Δt</code></li>
+          <li><span>05</span><h3>탄성에는 근거가 필요하다</h3><p>충분한 던지기 속도가 있을 때만 낮은 감쇠를 허용하고 나머지는 임계 감쇠한다.</p><code>|v| &gt; 240</code></li>
+        </ol>
+
+        <div class="sheet-test">
+          <div>
+            <p class="section-kicker">Test 02 / interruptible sheet</p>
+            <h3>닫는 중에 다시 잡아보세요.</h3>
+            <p>시트를 아래로 던진 뒤 사라지기 전에 다시 잡으면, 닫기를 끝낸 뒤 다시 여는 대신 그 좌표에서 바로 손가락을 따라옵니다.</p>
+          </div>
+          <button type="button" data-open-sheet>Test 02 열기 <span aria-hidden="true">↗</span></button>
+        </div>
+
+        <div class="failure-log">
+          <article><p>F-01</p><h3>10px 미만 재그랩</h3><p>움직이는 물체를 탭만 해도 중간 좌표에 멈추지 않도록, 입력 전 상태에 따라 목표로 복귀시킨다.</p></article>
+          <article><p>F-02</p><h3>오래된 속도</h3><p>마지막 이동 뒤 시간이 지나면 getter 단계에서도 샘플을 잘라 과거 속도를 버린다.</p></article>
+          <article><p>F-03</p><h3>숨겨진 탭</h3><p>requestAnimationFrame이 멈추면 visibilitychange에서 목표 상태로 종료한다.</p></article>
+          <article><p>F-04</p><h3>감각 접근성</h3><p>Reduced Motion에서는 직접 추적은 유지하되 관성·탄성만 제거하고, 키보드 경로를 병행한다.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="case-section" id="critique" aria-labelledby="critique-title">
+      <div class="section-rail">
+        <p>06 / Critique</p>
+        <p>자기 비평</p>
+      </div>
+      <div class="section-body">
+        <p class="section-kicker">What remains unresolved</p>
+        <h2 id="critique-title">잘된 판단과<br>아직 검증하지 못한 것을 함께 남긴다.</h2>
+
+        <div class="critique-grid">
+          <article>
+            <p>Strongest decision</p>
+            <h3>목표와 의도를 분리한 것</h3>
+            <p>재그랩 뒤 목표 좌표만으로 닫힘 여부를 판단하면 이미 철회된 사용자의 의도가 되살아납니다. <code>closingIntent</code>를 독립 상태로 둔 것이 이 작업에서 가장 중요한 결정입니다.</p>
+          </article>
+          <article>
+            <p>Unresolved</p>
+            <h3>실험실 밖의 입력</h3>
+            <p>속도 추정은 짧은 이력 평균에 머물고, 고주사율 기기·멀티터치·보조기술 사용자와의 실제 사용성 검증은 아직 하지 못했습니다.</p>
+          </article>
+          <article>
+            <p>Future study</p>
+            <h3>더 많은 감각 채널</h3>
+            <p>coalesced pointer events, 멀티터치 충돌, 소리와 햅틱이 가능한 환경의 피드백을 다음 검증 항목으로 남깁니다. 아직 구현한 기능이 아닙니다.</p>
+          </article>
+        </div>
+
+        <div class="authorship">
+          <h3>제작 정보와 AI 사용</h3>
+          <dl>
+            <div><dt>기획·요구사항·최종 판단</dt><dd>정찬용</dd></div>
+            <div><dt>초기 구현 협업</dt><dd>Claude Opus 5</dd></div>
+            <div><dt>구조·카피·코드 확장 보조</dt><dd>OpenAI Codex</dd></div>
+            <div><dt>기술</dt><dd>Semantic HTML, CSS, ES Modules, Pointer Events, requestAnimationFrame</dd></div>
+          </dl>
+          <p>생성형 AI는 레퍼런스 구조화, 코드 구현·검토, 오류 탐색에 사용했습니다. 프로젝트의 방향 선택과 최종 승인 주체는 정찬용입니다.</p>
+        </div>
+
+        <div class="references">
+          <h3>References</h3>
+          <ol>
+            <li><a href="https://developer.apple.com/videos/play/wwdc2018/803/" target="_blank" rel="noopener noreferrer">Apple — Designing Fluid Interfaces, WWDC18</a></li>
+            <li><a href="https://www.w3.org/TR/pointerevents/" target="_blank" rel="noopener noreferrer">W3C — Pointer Events</a></li>
+            <li><a href="https://drafts.csswg.org/css-transitions/" target="_blank" rel="noopener noreferrer">CSSWG — CSS Transitions</a></li>
+            <li><a href="https://www.w3.org/TR/web-animations-1/" target="_blank" rel="noopener noreferrer">W3C — Web Animations</a></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>FLUID MOTION / STUDY 01</p>
+    <p>정찬용 · Browser interaction case study · 2026</p>
+    <a href="#top">Top <span aria-hidden="true">↑</span></a>
+  </footer>
+
+  <div class="scrim" id="scrim" aria-hidden="true" hidden></div>
+  <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" aria-describedby="sheet-description" tabindex="-1" hidden>
+    <div class="sheet-topline">
+      <p>Test 02 / interruptible sheet</p>
+      <button class="sheet-close" type="button" id="sheet-close">닫기 <span aria-hidden="true">×</span></button>
+    </div>
+    <div class="sheet-grabber" aria-hidden="true"><span></span></div>
+    <h2 id="sheet-title">닫히는 움직임도<br>다시 협상할 수 있다.</h2>
+    <p id="sheet-description">아래로 끌어 던지고, 사라지기 전에 다시 붙잡으세요. 현재 위치는 새 입력으로 넘어가고, 놓을 때 새 포인터 속도를 스프링에 넘깁니다. 닫기 의도는 철회됩니다.</p>
+    <dl class="sheet-readout" aria-live="off">
+      <div><dt>Position</dt><dd id="ro-y">0</dd><span>px</span></div>
+      <div><dt>Velocity</dt><dd id="ro-v">0</dd><span>px/s</span></div>
+      <div><dt>Target</dt><dd id="ro-target">open</dd><span>state</span></div>
+      <div><dt>Intent</dt><dd id="ro-state">rest</dd><span>state</span></div>
+    </dl>
+    <p class="sheet-help">Pointer: drag anywhere except controls · Keyboard: Esc to close</p>
   </section>
 
-  <!-- 이음매 -->
-  <section class="section" aria-labelledby="cta-title">
-    <p class="section-label">Try</p>
-    <h2 class="section-title" id="cta-title">닫는 중에 다시 잡아보세요</h2>
-    <p class="section-desc">
-      시트를 아래로 던져 닫다가, 사라지기 전에 다시 붙잡으면
-      닫기를 마치고 되열리는 게 아니라 <strong>그 지점에서 손가락을 따라옵니다.</strong>
-    </p>
-    <p class="hero-links">
-      <button type="button" data-open-sheet>시트 열기</button>
-    </p>
-  </section>
-
-</main>
-
-<footer class="site-footer">
-  <p>感 — Fluid Motion Kit</p>
-  <p class="footer-small">
-    프레임워크 없이 HTML, CSS, JavaScript로만 만들었습니다.
-    제스처가 걸린 요소에는 CSS transition을 쓰지 않습니다 — 도중에 붙잡을 수 없기 때문입니다.
-  </p>
-</footer>
-
-<!-- 바텀 시트 — 잡아서 내릴 수 있고, 닫히는 중에도 다시 잡힌다 -->
-<div class="scrim" id="scrim" hidden></div>
-<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
-  <div class="sheet-grabber" aria-hidden="true"></div>
-  <h2 id="sheet-title">이 시트가 예제입니다</h2>
-  <p>
-    손잡이를 잡고 아래로 끌어보세요. 손가락을 1:1로 따라옵니다.
-    위로 끌면 저항이 점점 커집니다.
-  </p>
-  <p>
-    아래로 던져 닫히는 도중에 <strong>다시 붙잡으면</strong>, 닫기를 끝내고
-    되열리는 게 아니라 그 자리에서 바로 손가락을 따라옵니다.
-  </p>
-  <dl class="sheet-readout" aria-live="off">
-    <div><dt>위치</dt><dd id="ro-y">0px</dd></div>
-    <div><dt>속도</dt><dd id="ro-v">0px/s</dd></div>
-    <div><dt>상태</dt><dd id="ro-state">정지</dd></div>
-  </dl>
-  <button class="sheet-close" type="button" id="sheet-close">닫기</button>
-</section>
-
-<script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=2"></script>
 </body>
 </html>
