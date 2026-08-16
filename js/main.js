@@ -278,10 +278,32 @@ carousel.addEventListener('keydown', (e) => {
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
   e.preventDefault();
   index = Math.max(0, Math.min(snapPoints.length - 1, index + (e.key === 'ArrowRight' ? 1 : -1)));
-  if (prefersReducedMotion()) trackSpring.setValue(snapPoints[index]);
-  else trackSpring.setTarget(snapPoints[index]);
+  if (prefersReducedMotion()) {
+    // 움직임을 줄인 사용자에게는 CSS가 transform을 잠가 둔다(!important).
+    // 그래서 값을 아무리 써도 화면은 그대로다. 네이티브 스크롤로 옮긴다.
+    // snapPoints는 음수 이동량이므로 부호를 뒤집어 scrollLeft로 쓴다.
+    carousel.scrollLeft = -snapPoints[index];
+  } else {
+    trackSpring.setTarget(snapPoints[index]);
+  }
   updateHint();
 });
+
+// 손으로 직접 스크롤했을 때도 카운터가 사실을 말해야 한다.
+// 화면은 3번 카드인데 "5 / 5"라고 적혀 있으면 안내가 아니라 거짓말이 된다.
+carousel.addEventListener(
+  'scroll',
+  () => {
+    if (!prefersReducedMotion()) return;
+    const nearest = nearestSnapPoint(-carousel.scrollLeft, snapPoints);
+    const i = snapPoints.indexOf(nearest);
+    if (i >= 0 && i !== index) {
+      index = i;
+      updateHint();
+    }
+  },
+  { passive: true }
+);
 
 // ==========================================================================
 // 3. 즉각 반응 — 누르는 순간 반응한다
