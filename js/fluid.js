@@ -1,17 +1,17 @@
 // ==========================================================================
-// fluid.js — Apple의 Designing Fluid Interfaces(WWDC 2018)를 웹으로 옮긴 구현
+// fluid.js — 상태를 직접 관찰하기 위한 브라우저 모션 실험
 // 외부 라이브러리 없음.
 //
 // 이 파일이 지키는 것
-// 1. 모든 모션은 언제든 붙잡아 되돌릴 수 있다 (interruptible).
+// 1. 제스처 실험의 모션은 언제든 붙잡아 되돌릴 수 있다 (interruptible).
 // 2. 새 모션은 목표값이 아니라 '지금 화면에 보이는 값'에서 시작한다.
-// 3. 제스처가 끝나면 손가락의 속도를 그대로 물려받는다 (velocity handoff).
+// 3. 제스처가 끝나면 최근 입력에서 추정한 속도를 초기 속도로 넘긴다.
 // 4. 놓은 지점이 아니라 '가고 있던 곳'으로 판단한다 (momentum projection).
 // ==========================================================================
 
 /**
  * 감쇠비(damping)와 반응시간(response)으로 정의하는 스프링.
- * Apple이 mass/stiffness/damping 대신 쓰는 두 파라미터를 그대로 따른다.
+ * 감쇠비와 반응시간으로 스프링을 조절한다.
  *
  *   damping 1.0  — 임계 감쇠. 오버슈트 없음. 대부분의 UI 기본값.
  *   damping 0.8  — 살짝 튐. 제스처에 모멘텀이 있었을 때만 쓴다.
@@ -27,6 +27,7 @@ export class Spring {
     this.onUpdate = onUpdate;
     this.onRest = onRest;
     this._raf = null;
+    this._watchdog = null;
     this._last = 0;
   }
 
@@ -49,12 +50,15 @@ export class Spring {
     this.stop();
     this.value = value;
     this.velocity = velocity;
+    this.target = value;
     this.onUpdate?.(this.value, this.velocity);
   }
 
   stop() {
     if (this._raf !== null) cancelAnimationFrame(this._raf);
+    if (this._watchdog !== null) clearTimeout(this._watchdog);
     this._raf = null;
+    this._watchdog = null;
   }
 
   /**
@@ -63,8 +67,9 @@ export class Spring {
    * 않는다. 그때 화면 밖에 얼어붙은 요소가 남지 않도록 쓴다.
    */
   finish() {
-    if (this.value === this.target && this.velocity === 0) return;
+    const changed = this.value !== this.target || this.velocity !== 0;
     this.stop();
+    if (!changed) return;
     this.value = this.target;
     this.velocity = 0;
     this.onUpdate?.(this.value, 0);
@@ -84,26 +89,37 @@ export class Spring {
     // 감시견: 창이 완전히 가려지면 visibilityState가 'visible'인데도 rAF가
     // 오지 않는 브라우저가 있다. 그때 요소가 화면 밖에 얼어붙지 않도록
     // 한 프레임도 오지 않으면 목표값으로 끝낸다. (정상 상황에선 즉시 해제된다)
-    let sawFrame = false;
-    const watchdog = setTimeout(() => {
-      if (!sawFrame) this.finish();
+    this._watchdog = setTimeout(() => {
+      this.finish();
     }, 1000);
 
     const step = (now) => {
-      sawFrame = true;
-      clearTimeout(watchdog);
-      // 탭 전환 등으로 프레임이 크게 튀면 물리가 폭발하므로 상한을 둔다
-      const dt = Math.min((now - this._last) / 1000, 1 / 30);
+      if (this._watchdog !== null) clearTimeout(this._watchdog);
+      this._watchdog = null;
+
+      const elapsed = (now - this._last) / 1000;
       this._last = now;
+
+      // 긴 정지는 물리 계산으로 따라잡지 않는다. 숨겨진 탭과 극저FPS에서
+      // 화면 밖에 중간 상태가 남는 것보다 목표 상태로 종료하는 편이 안전하다.
+      if (elapsed > 0.25) {
+        this.finish();
+        return;
+      }
 
       const omega = (2 * Math.PI) / this.response; // 고유 진동수
       const zeta = this.damping;
-      const x = this.value - this.target;
 
-      // 감쇠 조화 진동자의 반음시적(semi-implicit) 적분 — 안정적이다
-      const accel = -omega * omega * x - 2 * zeta * omega * this.velocity;
-      this.velocity += accel * dt;
-      this.value += this.velocity * dt;
+      // 60Hz보다 느린 프레임도 실제 경과시간만큼 적분한다. 단순 dt clamp는
+      // 30fps 아래에서 모션 자체가 슬로모션이 되는 문제가 있다.
+      const steps = Math.max(1, Math.ceil(elapsed / (1 / 60)));
+      const dt = elapsed / steps;
+      for (let i = 0; i < steps; i += 1) {
+        const x = this.value - this.target;
+        const accel = -omega * omega * x - 2 * zeta * omega * this.velocity;
+        this.velocity += accel * dt;
+        this.value += this.velocity * dt;
+      }
 
       this.onUpdate?.(this.value, this.velocity);
 
@@ -112,6 +128,7 @@ export class Spring {
         this.velocity = 0;
         this.onUpdate?.(this.value, 0);
         this._raf = null;
+        this._watchdog = null;
         this.onRest?.();
         return;
       }
@@ -123,7 +140,7 @@ export class Spring {
 
 /**
  * 모멘텀 투영 — 놓은 지점이 아니라 '가고 있던 곳'을 계산한다.
- * Apple 샘플 코드의 지수 감쇠 형태. 교과서의 v²/(2a)가 아니다.
+ * 지수 감쇠 투영 형태를 참고했으며, 기본 감속률 0.998은 이 웹 실험의 선택값이다.
  */
 export function project(velocity, decelerationRate = 0.998) {
   return ((velocity / 1000) * decelerationRate) / (1 - decelerationRate);
@@ -154,12 +171,12 @@ export class VelocityTracker {
   add(position) {
     const now = performance.now();
     this.samples.push({ position, time: now });
-    while (this.samples.length > 2 && now - this.samples[0].time > this.historyMs) {
-      this.samples.shift();
-    }
+    this._trim(now);
   }
 
   get velocity() {
+    const now = performance.now();
+    this._trim(now);
     if (this.samples.length < 2) return 0;
     const first = this.samples[0];
     const last = this.samples[this.samples.length - 1];
@@ -171,6 +188,12 @@ export class VelocityTracker {
   reset() {
     this.samples = [];
   }
+
+  _trim(now) {
+    while (this.samples.length && now - this.samples[0].time > this.historyMs) {
+      this.samples.shift();
+    }
+  }
 }
 
 export const prefersReducedMotion = () =>
@@ -179,6 +202,6 @@ export const prefersReducedMotion = () =>
 /** 진행 중인 모든 스프링을 등록해 두고, 탭이 숨겨지면 한꺼번에 끝낸다. */
 export function finishOnHide(...springs) {
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) springs.forEach((s) => s.finish());
+    if (document.hidden) springs.filter((s) => s.isAnimating).forEach((s) => s.finish());
   });
 }

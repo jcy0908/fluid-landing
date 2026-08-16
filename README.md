@@ -1,95 +1,109 @@
-# 感 — Fluid Motion Kit 랜딩
+# FLUID MOTION / STUDY 01
 
-Apple의 *Designing Fluid Interfaces*(WWDC 2018) 원칙을 그대로 지켜 만든 랜딩 페이지.
-프레임워크도, 모션 라이브러리도 쓰지 않습니다. HTML · CSS · JavaScript만 씁니다.
+사용자가 모션 도중 마음을 바꿀 때 현재 위치와 속도를 어떻게 보존할지 탐구한 브라우저 인터랙션 스터디입니다.
 
-## 이 페이지가 지키는 규칙
+Apple의 *Designing Fluid Interfaces* 전체를 복제한 키트가 아니라, interruption/redirection, one-to-one tracking, momentum projection에서 선택한 원리를 웹 포인터 입력으로 번역한 개인 실험입니다. 바텀 시트와 가로 트랙 두 장면에서 위치·속도·목표·의도를 분리해 관찰합니다.
 
-### 제스처가 걸린 요소에는 CSS transition을 쓰지 않는다
+## 질문
 
-`transition`과 `@keyframes`는 도중에 붙잡아 되돌릴 수 없습니다. 정해진 시간 동안
-정해진 경로를 재생할 뿐이라, 새 입력이 오면 처음부터 다시 시작하거나 끝나기를
-기다려야 합니다.
+> 부드러움은 프레임레이트나 이징의 문제가 아니라, 사용자가 모션 도중 마음을 바꿀 때 현재 위치와 속도를 보존하며 통제권을 즉시 돌려주는 능력인가?
 
-그래서 **바텀 시트와 카드 트랙은 JS 스프링이 움직입니다.** CSS에는 이 두 요소의
-`transform`에 대한 어떤 transition도 없습니다.
+처음에는 애니메이션을 더 매끄럽게 만드는 법을 물었습니다. 그러나 진행 중인 움직임에 새 입력이 들어오는 반례를 두고, 문제를 모션의 외관에서 통제권의 연속성으로 바꿨습니다.
 
-`transition`은 제스처와 무관한 것에만 씁니다 — 색, 경계선, 눌렸을 때의 축소.
+## 선택한 모델
 
-### 닫히는 중에 다시 잡으면 그 자리에서 따라온다
+이 프로토타입은 현재값과 추정 속도, 목표를 하나의 모델에서 직접 관찰하기 위해 JS 스프링을 사용합니다.
 
-가장 중요한 요구사항입니다. 시트를 아래로 던져 닫다가 사라지기 전에 다시 잡으면,
-닫기를 끝내고 되열리는 게 아니라 **붙잡힌 그 지점에서 손가락을 따라옵니다.**
+CSS transition과 Web Animations도 실행 중 retarget, pause, reverse가 가능합니다. JS만이 가능한 해법이라는 뜻은 아닙니다. 이 실험에서는 다음 상태를 명시적으로 드러내고 서로 넘겨주기 위해 선택했습니다.
 
-구현의 핵심은 세 가지입니다.
+- `position`: 지금 화면에 보이는 값
+- `velocity`: 최근 포인터 이력에서 추정한 속도
+- `target`: 다음에 정착할 좌표
+- `intent`: 열기·닫기처럼 좌표만으로는 설명되지 않는 사용자 의도
+
+## 두 개의 실험
+
+### 01. Momentum track
+
+잡은 지점을 보존해 1:1로 추적하고, 손을 놓으면 현재 위치와 추정 속도에서 예상 도착점을 계산해 가장 가까운 스냅 포인트를 선택합니다. 움직이는 중 다시 잡으면 화면에 보이는 현재 좌표가 새 입력의 출발점이 됩니다.
+
+### 02. Interruptible sheet
+
+닫히는 시트를 다시 잡으면 진행 중인 스프링을 멈추고 `closingIntent`를 철회합니다. 목표 좌표와 닫기 의도를 분리하지 않으면 재그랩 뒤 원위치에 도착했을 때 이미 철회된 닫힘이 다시 실행될 수 있습니다.
 
 ```js
-function onPointerDown(e) {
-  sheetSpring.stop();        // 1. 진행 중인 모션을 그 자리에서 멈춘다
-  closingIntent = false;     // 2. 닫으려던 '의도'를 무효화한다
-  grabOffset = e.clientY - sheetSpring.value;  // 3. 현재 값에서 이어받는다
+function onSheetPointerDown(event) {
+  sheetSpring.stop();
+  closingIntent = false;
+  sheetGrabOffset = event.clientY - sheetSpring.value;
 }
 ```
 
-`closingIntent`를 목표값 비교(`spring.target !== 0`)로 대신하면 안 됩니다.
-다시 잡은 뒤 원위치로 돌아가 정착하는 순간 "닫으려던 중이었다"고 잘못 판단해
-시트가 사라집니다. 의도는 명시적인 플래그로 둬야 합니다.
+## 제작자가 정한 값
 
-### 놓은 자리가 아니라 가고 있던 곳으로 간다
+아래 값은 플랫폼의 보편 법칙이 아니라 이 프로토타입을 위해 조절한 선택입니다.
 
-```js
-const projected = spring.value + project(velocity);   // 지수 감쇠 투영
-const shouldClose = projected > sheetHeight * 0.4;
-spring.setTarget(shouldClose ? sheetHeight : 0, velocity); // 속도를 그대로 인계
-```
+| 항목 | 값 | 역할 |
+| --- | ---: | --- |
+| 포인터 이력 | 100ms | 오래된 이동 샘플 제거 |
+| 히스테리시스 | 10 CSS px | 탭과 드래그의 근사 경계 |
+| 시트 닫힘 임계 | 높이의 40% | 투영 위치에서 닫힘 판단 |
+| 러버밴드 상수 | 0.55 | 경계 밖 저항 |
+| 기본 damping | 1.0 | 오버슈트 없는 기본 모션 |
+| momentum damping | 0.86 | `|v| > 240px/s`일 때만 허용하는 탄성 |
 
-교과서의 `v²/(2a)`가 아니라 Apple 샘플 코드의 지수 감쇠 형태를 씁니다.
+## 실패 조건에서 고친 것
 
-### 그 밖에
+- 움직이는 요소를 10px 미만으로 재그랩해도 중간 좌표에 영구 정지하지 않게 했습니다.
+- 속도를 읽는 순간에도 100ms보다 오래된 샘플을 제거합니다.
+- 감쇠를 타이머로 되돌리지 않고 각 상태 전환과 정착 시점에 지정합니다.
+- 30fps 아래에서 단순 `dt` 제한 때문에 슬로모션이 되지 않도록 경과 시간을 60Hz 이하의 하위 단계로 적분합니다.
+- 다이얼로그는 초기 포커스, 포커스 순환, 배경 `inert`, 스크롤 잠금, `Esc`, 호출자 포커스 복원을 지원합니다.
+- Reduced Motion에서도 직접 추적과 키보드 통제권은 유지하고 관성·탄성만 제거합니다.
 
-- **1:1 추적** — 잡은 지점(`grabOffset`)을 기억합니다. 중앙으로 튀면 환상이 깨집니다.
-- **10px 히스테리시스** — 탭과 드래그를 가릅니다.
-- **러버밴딩** — 경계 밖에서는 저항이 점점 커집니다. 딱 멈추면 고장 난 것처럼 보입니다.
-- **즉각 반응** — 피드백은 `click`이 아니라 `pointerdown`에서 나옵니다.
-- **스크롤 엣지** — 헤더 밑 1px 실선 대신, 내용이 유리와 겹칠 때만 경계가 생깁니다.
-- **타이포그래피** — 트래킹은 크기별로 다릅니다. 큰 활자는 좁게(`-0.042em`),
-  본문은 0 근처, 작은 라벨은 넓게(`0.24em`).
+## 접근성과 입력
 
-## 접근성
+- Pointer Events의 primary pointer와 마우스 왼쪽 버튼만 제스처로 받습니다.
+- 가로 트랙은 `←` `→` 키로도 이동합니다.
+- 모달이 열리면 배경은 포커스와 보조기술 탐색에서 제외됩니다.
+- `prefers-reduced-motion`, `prefers-color-scheme`, `prefers-contrast`를 반영합니다.
+- 작은 높이 화면에서는 시트 콘텐츠를 스크롤할 수 있고, 터치 드래그는 손잡이에서 시작합니다.
 
-세 가지 신호에 각각 대응합니다.
+## 미완의 지점
 
-| 설정 | 대응 |
-| --- | --- |
-| `prefers-reduced-motion` | 스프링과 드래그를 끄고 짧은 크로스페이드로. 캐러셀은 네이티브 가로 스크롤로 |
-| `prefers-reduced-transparency` | 유리를 걷어내고 불투명하게 |
-| `prefers-contrast: more` | 경계선을 본문색으로, 보조 텍스트 대비를 올림 |
-
-키보드로도 캐러셀을 넘길 수 있고(`←` `→`), 시트는 `Esc`로 닫힙니다.
-`backdrop-filter` 미지원 브라우저에서는 `@supports`로 불투명도를 올려 가독성을 지킵니다.
-
-## 견고성
-
-- **숨겨진 탭** — `requestAnimationFrame`이 오지 않으면 모션이 끝나지 않고
-  `onRest`도 불리지 않아 요소가 화면 밖에 얼어붙습니다. `document.hidden`일 때는
-  즉시 목표값으로 종료합니다.
-- **감시견** — 창이 완전히 가려지면 `visibilityState`가 `visible`인데도 rAF가
-  오지 않는 경우가 있습니다. 1초 안에 한 프레임도 오지 않으면 목표값으로 끝냅니다.
-- **큰 프레임 간격** — `dt`에 상한(1/30초)을 둬서 탭 복귀 시 물리가 폭발하지 않게 합니다.
+이 프로토타입은 자연스럽다는 가설을 구현했을 뿐, 다른 사용자에게 더 자연스럽다는 것을 검증하지 못했습니다. 상수에는 공식 자료, 플랫폼 관습, 감각적 튜닝이 섞여 있으며 고주사율 기기·멀티터치·보조기술 사용자에 대한 실제 사용성 연구는 아직 하지 않았습니다. 실제 제품 캐러셀이라면 native scroll-snap이 접근성과 견고성 면에서 더 나을 수 있습니다.
 
 ## 실행
+
+ES Modules를 사용하므로 `file://`로 직접 열지 말고 로컬 HTTP 서버에서 실행합니다.
 
 ```bash
 python3 -m http.server 4200
 ```
 
-빌드 과정이 없습니다. `index.html`을 열기만 하면 됩니다.
+그 뒤 <http://localhost:4200>을 엽니다. 빌드 과정과 JavaScript 패키지 의존성은 없습니다. 글꼴은 Pretendard CDN 스타일시트를 불러오며, 실패하면 시스템 글꼴로 대체됩니다.
 
 ## 파일
 
+```text
+index.html       케이스 스터디 구조와 두 실험의 마크업
+css/style.css    기술 에디토리얼 디자인 시스템과 반응형 규칙
+js/fluid.js      스프링, 투영, 러버밴드, 속도 추적
+js/main.js       시트, 가로 트랙, 모션 계기판, 접근성 상태
 ```
-index.html
-css/style.css     디자인 시스템. 제스처 요소에는 transition 없음
-js/fluid.js       스프링, 모멘텀 투영, 러버밴딩, 속도 추적
-js/main.js        시트 · 캐러셀 · 즉각 반응 · 스크롤 엣지
-```
+
+## 제작 정보와 AI 사용
+
+- 기획·요구사항·최종 판단: 정찬용
+- 초기 구현 협업: Claude Opus 5
+- 구조·카피·코드 확장 보조: OpenAI Codex
+- 생성형 AI 사용 범위: 공식 자료 구조화, 문장 제안, 코드 작성·리뷰·테스트 보조
+
+프로젝트의 방향 선택과 최종 승인 주체는 정찬용입니다.
+
+## References
+
+- [Apple — Designing Fluid Interfaces, WWDC18](https://developer.apple.com/videos/play/wwdc2018/803/)
+- [W3C — Pointer Events](https://www.w3.org/TR/pointerevents/)
+- [CSSWG — CSS Transitions](https://drafts.csswg.org/css-transitions/)
+- [W3C — Web Animations](https://www.w3.org/TR/web-animations-1/)
