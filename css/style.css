@@ -15,10 +15,14 @@
   --mountain-ink: #1c2325;
   --moss: #4b6560;
   --stone: #8a9296;
+  --winter-soil: #5d6a6d;
 
   --c-bg: var(--winter-haze);
   --c-text: var(--mountain-ink);
-  --c-muted: var(--stone);
+  /* 보조 텍스트는 돌색(#8a9296)이 아니라 겨울 흙이다. 돌색은 유리 위에서
+     3.0:1까지 떨어져 14px 본문 기준 WCAG AA(4.5:1)에 못 미친다.
+     겨울 흙은 유리 위 5.3:1, 바탕 위 4.9:1로 통과한다. */
+  --c-muted: var(--winter-soil);
   --c-hairline: rgba(28, 35, 37, 0.14);
   --c-accent: var(--moss);
   --c-accent-hover: #354a46;
@@ -624,9 +628,20 @@ code {
     transform: none;
   }
 
+  /* 잘라내는 상자는 .carousel이다. 네이티브 스크롤은 여기에 걸어야 한다.
+     자식인 .carousel-track에 걸면 부모가 계속 잘라내므로 아무 데도 못 간다.
+     transform이 위에서 잠겨 있으므로(!important) 이 스크롤이 유일한 통로다. */
+  .carousel {
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  .carousel .card {
+    scroll-snap-align: start;
+  }
+
   .carousel-track {
     cursor: default;
-    overflow-x: auto;
   }
 }
 
