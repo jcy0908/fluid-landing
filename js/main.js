@@ -1,4 +1,17 @@
-import {
+// 물리는 C++로 쓰여 WebAssembly로 빌드된 모듈이 맡는다(js/fluid.wasm, 5KB).
+// 받지 못하면 같은 API의 JS 구현으로 되돌아간다 — 움직임은 달라지지 않는다.
+// 두 경로가 같은 값을 낸다는 것은 cpp/tests/wasm_equivalence.mjs가 확인한다.
+let engine = 'JavaScript';
+let fluid;
+try {
+  fluid = await import('./fluid-wasm.js');
+  await fluid.loadFluidWasm();
+  engine = 'WebAssembly (C++)';
+} catch (err) {
+  fluid = await import('./fluid.js');
+}
+
+const {
   Spring,
   project,
   rubberband,
@@ -6,7 +19,7 @@ import {
   VelocityTracker,
   prefersReducedMotion,
   finishOnHide,
-} from './fluid.js';
+} = fluid;
 
 // ==========================================================================
 // 1. 바텀 시트 — 잡아서 내릴 수 있고, 닫히는 중에도 다시 잡힌다
@@ -18,6 +31,10 @@ const grabber = sheet.querySelector('.sheet-grabber');
 const roY = document.getElementById('ro-y');
 const roV = document.getElementById('ro-v');
 const roState = document.getElementById('ro-state');
+const roEngine = document.getElementById('ro-engine');
+
+// 무엇이 이 시트를 움직이고 있는지 숨기지 않는다
+if (roEngine) roEngine.textContent = engine;
 
 const HYSTERESIS = 10; // 탭과 드래그를 가르는 최소 이동(px)
 

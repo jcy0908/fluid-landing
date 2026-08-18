@@ -17,13 +17,27 @@
 #ifndef FLUID_FLUID_HPP
 #define FLUID_FLUID_HPP
 
-#include <algorithm>
-#include <cmath>
+// 표준 라이브러리에 기대지 않는다. WebAssembly로 빌드할 때 libc/libc++ 없이
+// (-nostdlib -ffreestanding) 컴파일되어야 하기 때문이다. 힙도 쓰지 않는다.
+// std::vector를 받는 편의 오버로드만 FLUID_FREESTANDING이 아닐 때 딸려 온다.
+#ifndef FLUID_FREESTANDING
 #include <cstddef>
-#include <deque>
 #include <vector>
+#endif
 
 namespace fluid {
+
+#ifdef FLUID_FREESTANDING
+using size_type = unsigned long;
+#else
+using size_type = std::size_t;
+#endif
+
+namespace detail {
+inline constexpr double kPi = 3.14159265358979323846;
+inline double abs_(double v) { return __builtin_fabs(v); }
+inline double min_(double a, double b) { return a < b ? a : b; }
+}  // namespace detail
 
 // 프레임 간격의 상한(초). 탭 전환 등으로 크게 튀면 물리가 폭발한다.
 inline constexpr double kMaxDt = 1.0 / 30.0;
@@ -90,9 +104,9 @@ class Spring {
   bool step(double dt) {
     if (!animating_) return false;
 
-    dt = std::min(dt, kMaxDt);
+    dt = detail::min_(dt, kMaxDt);
 
-    const double omega = (2.0 * M_PI) / response;  // 고유 진동수
+    const double omega = (2.0 * detail::kPi) / response;  // 고유 진동수
     const double zeta = damping;
     const double x = value_ - target_;
 
@@ -101,7 +115,7 @@ class Spring {
     velocity_ += accel * dt;
     value_ += velocity_ * dt;
 
-    if (std::fabs(value_ - target_) < kRestEpsilon && std::fabs(velocity_) < kRestEpsilon) {
+    if (detail::abs_(value_ - target_) < kRestEpsilon && detail::abs_(velocity_) < kRestEpsilon) {
       value_ = target_;
       velocity_ = 0.0;
       animating_ = false;
@@ -125,19 +139,25 @@ inline double project(double velocity, double decelerationRate = 0.998) {
 
 /// 경계 너머로는 점점 덜 따라간다 — 딱 멈추면 고장 난 것처럼 보인다.
 inline double rubberband(double overshoot, double dimension, double constant = 0.55) {
-  return (overshoot * dimension * constant) / (dimension + constant * std::fabs(overshoot));
+  return (overshoot * dimension * constant) / (dimension + constant * detail::abs_(overshoot));
 }
 
 /// 여러 스냅 지점 중 투영 지점에 가장 가까운 곳을 고른다.
 /// 동률이면 앞의 것을 유지한다 — JS의 reduce와 같은 순서다.
-inline double nearestSnapPoint(double projected, const std::vector<double>& points) {
-  if (points.empty()) return projected;
-  double best = points.front();
-  for (std::size_t i = 1; i < points.size(); ++i) {
-    if (std::fabs(points[i] - projected) < std::fabs(best - projected)) best = points[i];
+inline double nearestSnapPoint(double projected, const double* points, size_type count) {
+  if (points == nullptr || count == 0) return projected;
+  double best = points[0];
+  for (size_type i = 1; i < count; ++i) {
+    if (detail::abs_(points[i] - projected) < detail::abs_(best - projected)) best = points[i];
   }
   return best;
 }
+
+#ifndef FLUID_FREESTANDING
+inline double nearestSnapPoint(double projected, const std::vector<double>& points) {
+  return nearestSnapPoint(projected, points.data(), points.size());
+}
+#endif
 
 /// 최근 포인터 이동에서 속도(px/s)를 뽑는다.
 /// 마지막 한 점만 쓰면 값이 튄다 — 짧은 이력의 평균을 쓴다.
@@ -145,33 +165,49 @@ inline double nearestSnapPoint(double projected, const std::vector<double>& poin
 /// JS와 달리 시각을 인자로 받는다. 주변 시계에 기대지 않기 위해서다.
 class VelocityTracker {
  public:
+  /// 100ms 이력이면 60fps에서 6~7개면 충분하다. 힙을 쓰지 않으려고
+  /// 고정 크기 링 버퍼를 쓰고, 넘치면 가장 오래된 것부터 버린다.
+  static constexpr size_type kCapacity = 32;
+
   explicit VelocityTracker(double historyMs = 100.0) : historyMs_(historyMs) {}
 
   void add(double position, double timeMs) {
-    samples_.push_back({position, timeMs});
-    while (samples_.size() > 2 && timeMs - samples_.front().time > historyMs_) {
-      samples_.pop_front();
-    }
+    if (count_ == kCapacity) pop_();
+    samples_[(head_ + count_) % kCapacity] = {position, timeMs};
+    ++count_;
+    while (count_ > 2 && timeMs - front_().time > historyMs_) pop_();
   }
 
   double velocity() const {
-    if (samples_.size() < 2) return 0.0;
-    const Sample& first = samples_.front();
-    const Sample& last = samples_.back();
+    if (count_ < 2) return 0.0;
+    const Sample& first = front_();
+    const Sample& last = samples_[(head_ + count_ - 1) % kCapacity];
     const double dt = (last.time - first.time) / 1000.0;
     if (dt <= 0.0) return 0.0;
     return (last.position - first.position) / dt;
   }
 
-  void reset() { samples_.clear(); }
+  void reset() {
+    head_ = 0;
+    count_ = 0;
+  }
 
  private:
   struct Sample {
     double position;
     double time;
   };
+
+  const Sample& front_() const { return samples_[head_]; }
+  void pop_() {
+    head_ = (head_ + 1) % kCapacity;
+    --count_;
+  }
+
   double historyMs_;
-  std::deque<Sample> samples_;
+  Sample samples_[kCapacity] = {};
+  size_type head_ = 0;
+  size_type count_ = 0;
 };
 
 }  // namespace fluid

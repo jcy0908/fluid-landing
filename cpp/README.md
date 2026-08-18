@@ -59,6 +59,45 @@ fluid.hpp ↔ js/fluid.js 동등성
 
 허용 오차는 상대 `1e-9`다.
 
+## 브라우저에서 쓰기 — WebAssembly
+
+같은 코드를 wasm으로 빌드해 사이트가 실제로 그것을 쓴다.
+
+```bash
+sh cpp/wasm/build.sh   # → js/fluid.wasm (5.4KB)
+```
+
+**Emscripten이 필요 없다.** clang의 wasm32 타깃과 `wasm-ld`만 쓴다. 런타임도,
+생성된 글루 코드도 없다. `-nostdlib -ffreestanding`으로 빌드되며 힙을 쓰지
+않는다 — 값을 주고받는 자리는 고정 스크래치 버퍼 하나뿐이다.
+
+`js/fluid-wasm.js`가 `js/fluid.js`와 **같은 API**를 내주므로 사이트는 import만
+바꾸면 된다. 받지 못하면 JS 구현으로 되돌아가고 움직임은 달라지지 않는다.
+
+경계는 이렇다.
+
+| | |
+| --- | --- |
+| wasm (C++) | 스프링 적분, 모멘텀 투영, 러버밴딩, 스냅 선택, 속도 추적 |
+| JS | `requestAnimationFrame`, 감시견, `document.hidden`, 콜백 |
+
+물리는 플랫폼과 무관하고, 시계를 얻는 방법은 플랫폼에 달렸다.
+
+### 검증이 두 겹이다
+
+```
+네이티브 C++ ↔ 원본 JS   28개   cpp/tests/test_fluid.cpp
+wasm        ↔ 원본 JS   20개   cpp/tests/wasm_equivalence.mjs
+```
+
+두 번째 테스트는 `js/fluid.js`와 `js/fluid-wasm.js`를 같은 가상 시계로
+돌려 프레임마다 대조한다. 사이트를 wasm 쪽으로 바꿔 끼워도 움직임이
+달라지지 않는다는 뜻이다.
+
+```bash
+node cpp/tests/wasm_equivalence.mjs
+```
+
 ## 빌드
 
 ```bash
@@ -118,4 +157,9 @@ tests/test_fluid.cpp      동등성 테스트. 외부 프레임워크 없음
 tests/golden.hpp          자동 생성 — 손으로 고치지 않는다
 tools/gen_golden.mjs      실제 js/fluid.js로 기준값을 만든다
 examples/throw.cpp        모멘텀 투영을 눈으로 보는 예제
+wasm/fluid_wasm.cpp       브라우저용 래퍼 (힙 없음)
+wasm/build.sh             Emscripten 없이 .wasm을 만든다
+tests/wasm_equivalence.mjs  wasm ↔ 원본 JS 대조
 ```
+
+빌드 산출물은 `js/fluid.wasm`이고 `js/fluid-wasm.js`가 그것을 감싼다.
