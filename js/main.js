@@ -8,6 +8,10 @@ import {
   finishOnHide,
 } from './fluid.js?v=2';
 
+// 실제 모듈과 의존성이 모두 로드된 뒤에만 인터랙티브 상태를 연다.
+// 로드 실패 시에는 HTML/CSS의 읽기·가로 스크롤 대안이 그대로 남는다.
+document.documentElement.classList.add('js');
+
 const HYSTERESIS = 10;
 const MOMENTUM_THRESHOLD = 240;
 
@@ -492,24 +496,65 @@ controls.addEventListener('reset', (event) => {
 // Immediate visual feedback and section state
 // ---------------------------------------------------------------------------
 
-document.querySelectorAll('button, .button-link, .hero-links a, .wordmark').forEach((element) => {
-  element.addEventListener('pointerdown', () => element.classList.add('is-pressed'));
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) =>
-    element.addEventListener(type, () => element.classList.remove('is-pressed'))
-  );
-});
+let pressedElement = null;
+
+function releasePressedElement() {
+  pressedElement?.classList.remove('is-pressed');
+  pressedElement = null;
+}
+
+document.addEventListener('pointerdown', (event) => {
+  if (!isPrimaryAction(event)) return;
+  const interactive = event.target.closest('button, a');
+  if (!interactive) return;
+  releasePressedElement();
+  pressedElement = interactive;
+  interactive.classList.add('is-pressed');
+}, { passive: true });
+
+addEventListener('pointerup', releasePressedElement, { passive: true });
+addEventListener('pointercancel', releasePressedElement, { passive: true });
+addEventListener('blur', releasePressedElement);
 
 const header = document.getElementById('site-header');
+const hero = document.querySelector('.hero');
+const narrativeSections = [...document.querySelectorAll('.case-section')];
+const rootStyle = document.documentElement.style;
 let scrollTicking = false;
-function syncHeader() {
-  header.classList.toggle('is-overlapping', window.scrollY > 4);
+
+function syncScrollNarrative() {
+  const scrollY = window.scrollY;
+  const viewportHeight = window.innerHeight;
+  const pageRange = Math.max(1, document.documentElement.scrollHeight - viewportHeight);
+  const heroRange = Math.max(1, hero.offsetHeight * 0.78);
+  const heroProgress = clamp(scrollY / heroRange, 0, 1);
+  const sectionStates = narrativeSections.map((section) => {
+    const rect = section.getBoundingClientRect();
+    const progress = clamp((viewportHeight - rect.top) / Math.max(1, viewportHeight + rect.height), 0, 1);
+    return { section, progress, headingLift: Math.max(0, 14 - progress * 46) };
+  });
+
+  header.classList.toggle('is-overlapping', scrollY > 8);
+  rootStyle.setProperty('--page-progress', `${clamp(scrollY / pageRange, 0, 1) * 100}%`);
+  rootStyle.setProperty('--hero-lift', `${heroProgress * -30}px`);
+  rootStyle.setProperty('--hero-opacity', String(1 - heroProgress * 0.28));
+  rootStyle.setProperty('--hero-glow-shift', `${heroProgress * 72}px`);
+
+  sectionStates.forEach(({ section, progress, headingLift }) => {
+    section.style.setProperty('--section-progress', `${progress * 100}%`);
+    section.style.setProperty('--section-lift', `${headingLift}px`);
+  });
+
   scrollTicking = false;
 }
-addEventListener('scroll', () => {
+
+function scheduleScrollNarrative() {
   if (scrollTicking) return;
   scrollTicking = true;
-  requestAnimationFrame(syncHeader);
-}, { passive: true });
+  requestAnimationFrame(syncScrollNarrative);
+}
+
+addEventListener('scroll', scheduleScrollNarrative, { passive: true });
 
 const navLinks = [...document.querySelectorAll('.site-nav a')];
 if ('IntersectionObserver' in window) {
@@ -543,13 +588,16 @@ function measureAll() {
 
 measureAll();
 syncControlOutputs();
-syncHeader();
+syncScrollNarrative();
 syncTelemetry({});
 
 let resizeFrame = null;
 addEventListener('resize', () => {
   cancelAnimationFrame(resizeFrame);
-  resizeFrame = requestAnimationFrame(measureAll);
+  resizeFrame = requestAnimationFrame(() => {
+    measureAll();
+    syncScrollNarrative();
+  });
 });
 
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
@@ -561,7 +609,7 @@ reducedMotionQuery.addEventListener?.('change', () => {
 
 const colorSchemeQuery = matchMedia('(prefers-color-scheme: dark)');
 const themeColor = document.querySelector('meta[name="theme-color"]');
-const syncThemeColor = () => themeColor?.setAttribute('content', colorSchemeQuery.matches ? '#141513' : '#f0efea');
+const syncThemeColor = () => themeColor?.setAttribute('content', colorSchemeQuery.matches ? '#101010' : '#f5f5f7');
 colorSchemeQuery.addEventListener?.('change', syncThemeColor);
 syncThemeColor();
 
