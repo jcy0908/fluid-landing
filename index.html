@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FLUID MOTION / STUDY 01 — 중단 가능한 웹 모션</title>
   <meta name="description" content="위치·속도·목표·의도를 분리해, 사용자의 다음 판단에 계속 답하는 중단 가능한 웹 모션 시스템을 설계하고 검증한 정찬용의 브라우저 스터디.">
-  <meta name="theme-color" content="#f0efea">
+  <meta name="theme-color" content="#f5f5f7">
   <link rel="canonical" href="https://jcy0908.github.io/fluid-landing/">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ko_KR">
@@ -15,9 +15,7 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="FLUID MOTION / STUDY 01">
   <meta name="twitter:description" content="위치·속도·목표·의도를 분리한 중단 가능한 웹 모션 스터디.">
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="css/style.css?v=3">
+  <link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
   <a class="skip-link" href="#content">본문으로 건너뛰기</a>
@@ -48,6 +46,7 @@
           <a class="button-link" href="#tests">실험 시작</a>
           <a href="#question">과정 읽기 <span aria-hidden="true">↘</span></a>
         </p>
+        <p class="scroll-cue" aria-hidden="true"><span></span>Scroll to inspect the system</p>
       </div>
 
       <aside class="telemetry" aria-labelledby="telemetry-title">
@@ -62,6 +61,13 @@
         <p>위치·속도·목표·의도를 하나의 재생 시간 대신 계속 갱신한다.</p>
       </aside>
     </section>
+
+    <noscript>
+      <aside class="noscript-note" aria-label="JavaScript 없이 보는 방법">
+        <strong>읽기는 그대로, 데모는 기본 동작으로.</strong>
+        <span>가로 트랙은 직접 스크롤할 수 있습니다. 스프링 계기판과 중단 가능한 시트는 JavaScript를 켜면 활성화됩니다.</span>
+      </aside>
+    </noscript>
 
     <ul class="scale-strip" aria-label="프로젝트 규모">
       <li><strong>02</strong><span>live gesture tests</span></li>
@@ -163,7 +169,7 @@
           </ul>
           <div class="carousel-status">
             <p id="carousel-help">드래그하거나 좌우 화살표 키로 이동</p>
-            <p><span>Snap</span> <output id="carousel-hint" aria-live="polite">01 / 01</output></p>
+            <p><span>Snap</span> <output id="carousel-hint" aria-live="polite">01 / 05</output></p>
             <p><span>Velocity</span> <output id="track-velocity">0 px/s</output></p>
           </div>
         </div>
@@ -335,6 +341,6 @@
     <p class="sheet-help">Pointer: drag anywhere except controls · Keyboard: Esc to close</p>
   </section>
 
-  <script type="module" src="js/main.js?v=3"></script>
+  <script type="module" src="js/main.js?v=4"></script>
 </body>
 </html>

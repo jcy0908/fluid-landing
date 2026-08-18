@@ -67,7 +67,16 @@ function onSheetPointerDown(event) {
 - 가로 트랙은 `←` `→` 키로도 이동합니다.
 - 모달이 열리면 배경은 포커스와 보조기술 탐색에서 제외됩니다.
 - `prefers-reduced-motion`, `prefers-color-scheme`, `prefers-contrast`를 반영합니다.
+- `prefers-reduced-transparency`에서는 글래스 효과를 불투명 표면으로 바꿉니다.
 - 작은 높이 화면에서는 시트 콘텐츠를 스크롤할 수 있고, 터치 드래그는 손잡이에서 시작합니다.
+
+## 웹 구현 원칙
+
+- 본문 전체를 완성된 HTML로 먼저 제공하고 JavaScript는 상태·제스처·스크롤 문맥만 보강합니다.
+- 시스템/SF 계열 글꼴 스택을 사용해 외부 글꼴 요청과 레이아웃 이동을 없앴습니다.
+- sticky chrome, 섹션 진행 표시, hero의 미세한 깊이 변화는 하나의 `requestAnimationFrame` 스크롤 루프에서 CSS 변수로 전달합니다.
+- JavaScript가 꺼져도 케이스 스터디는 모두 읽을 수 있고, 가로 트랙은 native overflow와 scroll snap으로 탐색할 수 있습니다.
+- 무거운 프레임워크·3D·모션 라이브러리 없이 브라우저 기본 기능과 기존 스프링 엔진만 사용합니다.
 
 ## 미완의 지점
 
@@ -81,7 +90,7 @@ ES Modules를 사용하므로 `file://`로 직접 열지 말고 로컬 HTTP 서�
 python3 -m http.server 4200
 ```
 
-그 뒤 <http://localhost:4200>을 엽니다. 빌드 과정과 JavaScript 패키지 의존성은 없습니다. 글꼴은 Pretendard CDN 스타일시트를 불러오며, 실패하면 시스템 글꼴로 대체됩니다.
+그 뒤 <http://localhost:4200>을 엽니다. 빌드 과정, JavaScript 패키지 의존성, 외부 글꼴 요청은 없습니다. 글꼴은 Apple 기기에서 SF Pro·Apple SD Gothic Neo를 우선하고 다른 운영체제에서는 각 시스템 UI 글꼴로 대체됩니다.
 
 ## 파일
 
